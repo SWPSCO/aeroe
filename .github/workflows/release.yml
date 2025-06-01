@@ -292,6 +292,84 @@ jobs:
           echo "Files matching sig pattern:"
           find artifacts -name "*.app.tar.gz.sig" -type f || echo "No sig files found"
 
+      - name: Create Tauri Updater Static JSON
+        run: |
+          echo "Creating static JSON for Tauri updater..."
+          
+          # Get version without 'v' prefix
+          VERSION="${{ needs.update_version.outputs.app_version }}"
+          TAG_NAME="${{ github.ref_name }}"
+          REPO_URL="https://github.com/${{ github.repository }}"
+          
+          # Get current timestamp in ISO format
+          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")
+          
+          # Start building the JSON
+          cat > latest.json << EOF
+          {
+            "version": "$VERSION",
+            "notes": "Automated release for $TAG_NAME",
+            "pub_date": "$PUB_DATE",
+            "platforms": {
+          EOF
+          
+          # Initialize platform entries array
+          PLATFORM_ENTRIES=""
+          
+          # Process x86_64 (x64) artifacts
+          X64_TAR_GZ=$(find artifacts -name "Aeroe-x64.app.tar.gz" -type f | head -1)
+          X64_SIG=$(find artifacts -name "Aeroe-x64.app.tar.gz.sig" -type f | head -1)
+          
+          if [ -f "$X64_TAR_GZ" ] && [ -f "$X64_SIG" ]; then
+            echo "Found x64 artifacts: $X64_TAR_GZ and $X64_SIG"
+            X64_SIGNATURE=$(cat "$X64_SIG")
+            X64_URL="$REPO_URL/releases/download/$TAG_NAME/Aeroe-x64.app.tar.gz"
+            
+            PLATFORM_ENTRIES='      "darwin-x86_64": {
+                "signature": "'"$X64_SIGNATURE"'",
+                "url": "'"$X64_URL"'"
+              }'
+          fi
+          
+          # Process aarch64 artifacts
+          AARCH64_TAR_GZ=$(find artifacts -name "Aeroe-aarch64.app.tar.gz" -type f | head -1)
+          AARCH64_SIG=$(find artifacts -name "Aeroe-aarch64.app.tar.gz.sig" -type f | head -1)
+          
+          if [ -f "$AARCH64_TAR_GZ" ] && [ -f "$AARCH64_SIG" ]; then
+            echo "Found aarch64 artifacts: $AARCH64_TAR_GZ and $AARCH64_SIG"
+            AARCH64_SIGNATURE=$(cat "$AARCH64_SIG")
+            AARCH64_URL="$REPO_URL/releases/download/$TAG_NAME/Aeroe-aarch64.app.tar.gz"
+            
+            # Add comma if we already have x64 entry
+            if [ -n "$PLATFORM_ENTRIES" ]; then
+              PLATFORM_ENTRIES="$PLATFORM_ENTRIES,"
+            fi
+            
+            PLATFORM_ENTRIES="$PLATFORM_ENTRIES
+              \"darwin-aarch64\": {
+                \"signature\": \"$AARCH64_SIGNATURE\",
+                \"url\": \"$AARCH64_URL\"
+              }"
+          fi
+          
+          # Complete the JSON
+          cat >> latest.json << EOF
+          $PLATFORM_ENTRIES
+            }
+          }
+          EOF
+          
+          echo "Generated latest.json:"
+          cat latest.json
+          
+          # Validate JSON format
+          if ! jq empty latest.json; then
+            echo "Error: Generated JSON is invalid"
+            exit 1
+          fi
+          
+          echo "Static JSON created successfully"
+
       - name: Debug Release Info
         run: |
           echo "Tag name (github.ref_name): ${{ github.ref_name }}"
@@ -316,3 +394,4 @@ jobs:
             artifacts/macOS-*/dmg/*.dmg
             artifacts/macOS-*/macos/Aeroe-*.app.tar.gz
             artifacts/macOS-*/macos/Aeroe-*.app.tar.gz.sig
+            latest.json
