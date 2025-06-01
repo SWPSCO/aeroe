@@ -1,0 +1,318 @@
+# Workflow name displayed on GitHub
+name: Release Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      notarize:
+        description: 'Notarize'
+        required: false
+        default: false
+        type: boolean
+jobs:
+  update_version:
+    name: Update App Version
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -eo pipefail {0}
+    outputs:
+      app_version: ${{ steps.get_tag.outputs.version }}
+    steps:
+      - name: Checkout code for version update
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          submodules: 'recursive'
+
+      - name: Get and clean tag name
+        id: get_tag
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          echo "Original tag name from github.ref_name: $TAG_NAME"
+          CLEANED_TAG_NAME="${TAG_NAME#v}"
+          echo "Cleaned tag name (for version): $CLEANED_TAG_NAME"
+          echo "version=$CLEANED_TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Update tauri.conf.json version
+        run: |
+          CONFIG_FILE="src-tauri/tauri.conf.json"
+          NEW_VERSION="${{ steps.get_tag.outputs.version }}"
+          echo "Attempting to update '$CONFIG_FILE'..."
+          echo "Setting version to: $NEW_VERSION"
+          if [ ! -f "$CONFIG_FILE" ]; then
+            echo "Error: $CONFIG_FILE not found at the expected location."
+            echo "Ensure the path is correct and the file exists in the checked-out tag."
+            exit 1
+          fi
+          TMP_JSON_FILE=$(mktemp)
+          jq --arg new_version "$NEW_VERSION" '.version = $new_version' "$CONFIG_FILE" > "$TMP_JSON_FILE"
+          if [ $? -ne 0 ]; then
+            echo "Error: jq command failed to update version in '$CONFIG_FILE'."
+            echo "Original file content for debugging:"
+            cat "$CONFIG_FILE"
+            rm "$TMP_JSON_FILE"
+            exit 1
+          fi
+          mv "$TMP_JSON_FILE" "$CONFIG_FILE"
+          echo "Successfully updated version in '$CONFIG_FILE'."
+
+      - name: Display tauri.conf.json content
+        run: |
+          echo "--------------------------------------------------"
+          echo "Contents of 'src-tauri/tauri.conf.json' after update:"
+          echo "--------------------------------------------------"
+          cat src-tauri/tauri.conf.json
+          echo "--------------------------------------------------"
+
+      - name: Upload modified tauri.conf.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-config-json
+          path: src-tauri/tauri.conf.json
+
+  build_macOS_bundles:
+    name: Build macOS App Bundles
+    needs: update_version
+    defaults:
+      run:
+        shell: bash -eo pipefail {0}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            target: x86_64-apple-darwin
+            artifact_bundle_extension: ".app"
+            build_args: "--target x86_64-apple-darwin"
+            os_name: "macOS-x86_64"
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            artifact_bundle_extension: ".app"
+            build_args: "--target aarch64-apple-darwin"
+            os_name: "macOS-aarch64"
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout code at specific tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          submodules: 'recursive'
+
+      - name: Download tauri.conf.json
+        uses: actions/download-artifact@v4
+        with:
+          name: tauri-config-json
+          path: src-tauri
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: 'yarn'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+          targets: ${{ matrix.target }}
+
+      - name: Import Apple Developer Certificate
+        if: runner.os == 'macOS'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          rm certificate.p12
+
+      - name: Ensure x86_64-apple-darwin target is installed for macOS x86_64 build
+        if: matrix.target == 'x86_64-apple-darwin' && matrix.platform == 'macos-latest'
+        run: rustup target add x86_64-apple-darwin
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies (yarn)
+        run: yarn install
+
+      - name: Create API Key file for Notarization
+        if: ${{ inputs.notarize }}
+        env:
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          if [ -n "$APPLE_API_KEY_CONTENT" ]; then
+            echo "Creating .p8 file for App Store Connect API Key notarization..."
+            printf "%s" "$APPLE_API_KEY_CONTENT" > private_key.p8
+            echo "APPLE_API_KEY_PATH=${GITHUB_WORKSPACE}/private_key.p8" >> $GITHUB_ENV
+            echo ".p8 file created."
+          else
+            echo "APPLE_API_KEY_P8 secret is not set. Skipping .p8 file creation."
+            # Ensure APPLE_API_KEY_PATH is not set or is empty if the key is not provided
+            echo "APPLE_API_KEY_PATH=" >> $GITHUB_ENV 
+          fi
+
+      - name: Build Tauri app (with notarization)
+        if: ${{ inputs.notarize }}
+        uses: tauri-apps/tauri-action@v0.5.6
+        id: tauri_build_notarized
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY_PATH: ${{ env.APPLE_API_KEY_PATH }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: '.'
+          args: ${{ matrix.build_args }}
+
+      - name: Build Tauri app (without notarization)
+        if: ${{ !inputs.notarize }}
+        uses: tauri-apps/tauri-action@v0.5.6
+        id: tauri_build_unsigned
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: '.'
+          args: ${{ matrix.build_args }}
+
+      - name: Prepare artifact paths for upload
+        id: prep_artifact_paths
+        shell: bash
+        run: |
+          # Get the artifact paths from whichever build step ran
+          if [ "${{ inputs.notarize }}" = "true" ]; then
+            paths_json='${{ steps.tauri_build_notarized.outputs.artifactPaths }}'
+          else
+            paths_json='${{ steps.tauri_build_unsigned.outputs.artifactPaths }}'
+          fi
+          echo "Raw artifactPaths from tauri_build: ${paths_json}"
+          
+          # Convert JSON array string to newline-separated paths
+          # Fallback to empty string if jq fails or input is empty, to avoid errors with GITHUB_OUTPUT
+          paths_list=$(echo "${paths_json}" | jq -r '.[]' 2>/dev/null || echo "")
+          
+          # Add the .tar.gz and .tar.gz.sig files that tauri creates but doesn't include in artifactPaths
+          # These are needed for the Tauri v2 updater plugin
+          additional_paths=""
+          for path in $(echo "${paths_list}" | grep "\.app$"); do
+            tar_gz_path="${path}.tar.gz"
+            sig_path="${path}.tar.gz.sig"
+            if [ -f "$tar_gz_path" ]; then
+              # Rename the tar.gz file to include architecture to avoid conflicts
+              arch_name="${{ matrix.target }}"
+              if [[ "$arch_name" == "x86_64-apple-darwin" ]]; then
+                arch_suffix="x64"
+              elif [[ "$arch_name" == "aarch64-apple-darwin" ]]; then
+                arch_suffix="aarch64"
+              else
+                arch_suffix="unknown"
+              fi
+              
+              # Create new filename with architecture
+              tar_gz_dir=$(dirname "$tar_gz_path")
+              new_tar_gz_name="Aeroe-${arch_suffix}.app.tar.gz"
+              new_tar_gz_path="${tar_gz_dir}/${new_tar_gz_name}"
+              
+              # Copy the file with new name
+              cp "$tar_gz_path" "$new_tar_gz_path"
+              additional_paths="${additional_paths}${new_tar_gz_path}\n"
+              
+              # Handle sig file if it exists
+              if [ -f "$sig_path" ]; then
+                new_sig_name="Aeroe-${arch_suffix}.app.tar.gz.sig"
+                new_sig_path="${tar_gz_dir}/${new_sig_name}"
+                cp "$sig_path" "$new_sig_path"
+                additional_paths="${additional_paths}${new_sig_path}\n"
+              fi
+            fi
+          done
+          
+          # Combine original paths with additional paths
+          all_paths="${paths_list}"
+          if [ -n "$additional_paths" ]; then
+            all_paths="${all_paths}\n$(echo -e "$additional_paths" | sed '/^$/d')"
+          fi
+          
+          echo "Formatted paths for upload:"
+          echo -e "${all_paths}"
+          
+          # Set output for the next step
+          # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-a-multiline-output
+          echo "paths<<EOF" >> $GITHUB_OUTPUT
+          echo -e "${all_paths}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Upload macOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macOS-${{ matrix.os_name }}-${{ needs.update_version.outputs.app_version }}
+          path: ${{ steps.prep_artifact_paths.outputs.paths }}
+          if-no-files-found: error # Fail the workflow if no files are found
+
+  publish_release:
+    name: Publish GitHub Release
+    needs: [update_version, build_macOS_bundles]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List downloaded artifacts (for debugging)
+        run: |
+          echo "Listing downloaded artifacts..."
+          ls -R artifacts
+          echo ""
+          echo "Files matching DMG pattern:"
+          find artifacts -name "*.dmg" -type f || echo "No DMG files found"
+          echo ""
+          echo "Files matching tar.gz pattern:"
+          find artifacts -name "*.app.tar.gz" -type f || echo "No tar.gz files found"
+          echo ""
+          echo "Files matching sig pattern:"
+          find artifacts -name "*.app.tar.gz.sig" -type f || echo "No sig files found"
+
+      - name: Debug Release Info
+        run: |
+          echo "Tag name (github.ref_name): ${{ github.ref_name }}"
+          echo "Is prerelease condition: ${{ contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2.0.6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            Automated release for ${{ github.ref_name }}
+
+            **Assets:**
+            See attached files.
+          draft: false
+          # disabled prerelease for now, we want everything to be a proper release
+          # prerelease: ${{ contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}
+          files: |
+            artifacts/macOS-*/dmg/*.dmg
+            artifacts/macOS-*/macos/Aeroe-*.app.tar.gz
+            artifacts/macOS-*/macos/Aeroe-*.app.tar.gz.sig

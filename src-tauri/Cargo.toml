@@ -1,0 +1,65 @@
+[package]
+name = "aeroe"
+description = "Desktop client for nockchain"
+authors = ["swpsco"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "aeroe_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# tauri
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+
+# external
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1.44.2", features = ["full"] }
+tracing = "0.1.41"
+tracing-subscriber = "0.3.19"
+reqwest = { version = "0.11", features = ["json"] }
+async-channel = "1.5.1"
+async-oneshot = "0.5.0"
+dotenv = "0.15.0"
+clap = { version = "4.5.37", features = ["derive"] }
+base64 = "0.21"
+chrono = "0.4.41"
+bs58 = "0.5.1"
+libp2p = "0.55.0"
+equix = "0.2.3"
+
+# internal
+#libconfig = { path = "../../nockpool/libconfig" }
+#libnockpool = { path = "../../nockpool/libnockpool" }
+
+# stratum v2
+codec_sv2 = { git = "https://github.com/stratum-mining/stratum.git", rev = "6a4874d1302327e169cd894dc5a79f52d533dcc9", package = "codec_sv2", default-features = false }
+network_helpers_sv2 = { git = "https://github.com/stratum-mining/stratum.git", rev = "6a4874d1302327e169cd894dc5a79f52d533dcc9", package = "network_helpers_sv2" }
+key-utils = { git = "https://github.com/stratum-mining/stratum.git", rev = "6a4874d1302327e169cd894dc5a79f52d533dcc9", package = "key-utils" }
+roles_logic_sv2 = { git = "https://github.com/stratum-mining/stratum.git", rev = "6a4874d1302327e169cd894dc5a79f52d533dcc9", package = "roles_logic_sv2" }
+
+# nockchain
+# Using relative path to the submodule
+nockchain = { path = "../vendor/nockchain/crates/nockchain" }
+nockvm = { path = "../vendor/nockchain/crates/nockvm/rust/nockvm" }
+nockapp = { path = "../vendor/nockchain/crates/nockapp" }
+kernels = { path = "../vendor/nockchain/crates/kernels", features = ["wallet"] }
+zkvm-jetpack = { path = "../vendor/nockchain/crates/zkvm-jetpack" }
+getrandom = { version = "0.2.15", features = ["std"] }
+nockchain-wallet-lib = { path = "../vendor/nockchain/crates/nockchain-wallet-lib" }
+nockvm_macros = { path = "../vendor/nockchain/crates/nockvm/rust/nockvm_macros" }
+nockchain-bitcoin-sync = { path = "../vendor/nockchain/crates/nockchain-bitcoin-sync" }
+nockchain-libp2p-io = { path = "../vendor/nockchain/crates/nockchain-libp2p-io" }
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Aeroe",
+  "version": "0.0.0-localbuild",
+  "identifier": "io.aeroe.swpsco.app",
+  "build": {
+    "beforeDevCommand": "yarn dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "yarn build",
+    "frontendDist": "../build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Aeroe",
+        "width": 1440,
+        "height": 900
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI0MkM4NTA1NkFERTY2NDMKUldSRFp0NXFCWVVzSkxxR3dMTFhCYWUybFVKRVE2T2ZlTkZ3VzJGNlNWa0xSYzhVZU44QVEvRjcK",
+      "endpoints": [
+        "https://github.com/SWPSCO/aeroe/releases/latest/download/latest.json"
+      ]
+    }
+  }
+}
