@@ -58,7 +58,7 @@
      {/if}
      <div class="flex-1"></div>
      <div class="flex gap-{collapsed ? "1" : "4"} text-light font-title text-xs {collapsed ? "flex-col" :""}">
-        <div><a class="text-highlight-orange" href="https://aeroe.io/terms-of-use" target="_blank">[terms]</a></div>
-        <div><a class="text-highlight-orange" href="https://aeroe.io/privacy-policy" target="_blank">[privacy]</a></div>
+        <div><a class="text-highlight-orange" href="https://swps.io/terms-of-use" target="_blank">[terms]</a></div>
+        <div><a class="text-highlight-orange" href="https://swps.io/privacy-policy" target="_blank">[privacy]</a></div>
     </div>
 </div>
