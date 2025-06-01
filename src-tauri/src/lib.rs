@@ -3,12 +3,18 @@ mod manager;
 mod wallet_app;
 
 use std::sync::mpsc;
-use tauri::Manager;
 use tokio::sync::Mutex;
 
+use tauri::{Emitter, Manager};
+
+use tauri_plugin_updater::UpdaterExt;
+
 use crate::wallet_app::WalletApp;
-use crate::commands::wallet;
-use crate::commands::terms;
+use crate::commands::{
+    wallet,
+    terms,
+    updater,
+};
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -101,6 +107,27 @@ pub async fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .setup(move |app| {
+            // update checker
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let mut interval = tokio::time::interval(Duration::from_secs(15));
+                loop {
+                    interval.tick().await;
+                    let window = app_handle.get_webview_window("main").unwrap();
+                    if let Some(update) = app_handle.updater().unwrap().check().await.unwrap() {
+                        let _ = window.emit("update", updater::UpdateInfo::new(
+                            true,
+                            update.version,
+                        ));
+                    } else {
+                        let _ = window.emit("update", updater::UpdateInfo::new(
+                            false,
+                            "".to_string(),
+                        ));
+                    }
+                }
+            });
+
             // data directory for all app data
             let data_dir: std::path::PathBuf = app.path().app_data_dir().unwrap();
             let _nockchain_dir = data_dir.join("nockchain"); // unused for now
@@ -178,6 +205,8 @@ pub async fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            // updater
+            updater::download_and_install_update,
             //
             // terms
             //

@@ -13,6 +13,10 @@ async function handleInvoke(command, args) {
     }
 }
 
+export const updater = {
+    downloadAndInstallUpdate: async () => handleInvoke('download_and_install_update'),
+}
+
 export const terms = {
     isTermsAccepted: async () => handleInvoke('terms_of_use_is_accepted'),
     setTermsAccepted: async () => handleInvoke('accept_terms_of_use'),

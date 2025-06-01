@@ -47,8 +47,9 @@
         await checkPrivacyAccepted();
         if (termsOfUseAccepted && privacyPolicyAccepted) {
             goto("/wallet");
+        } else {
+            pageIsReady = true;
         }
-        pageIsReady = true;
     });
 
 </script>
