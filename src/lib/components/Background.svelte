@@ -9,7 +9,7 @@
 	$: format = "w-dvh h-dvh flex bg-cover";
 </script>
 <!-- <div id="layout" class="{format} bg-light dark:bg-dark bg-[url('/dot-bg.png')] dark:bg-[url('/dot-bg-dark.png')]"><slot /></div> -->
-<div id="layout" class="{format} bg-light dark:bg-dark"><slot /></div>
+<div id="layout" class="{format} bg-light"><slot /></div>
 
 
 <!-- <div class="w-dvh h-dvh flex bg-light dark:bg-dark bgpic dark:bgpic"><slot /></div>
