@@ -1,6 +1,7 @@
 mod commands;
 mod manager;
 mod wallet_app;
+mod watcher;
 
 use std::sync::mpsc;
 use tokio::sync::Mutex;
@@ -9,6 +10,7 @@ use tauri::{Emitter, Manager};
 
 use tauri_plugin_updater::UpdaterExt;
 
+use crate::watcher::Watcher;
 use crate::wallet_app::WalletApp;
 use crate::commands::{
     wallet,
@@ -113,17 +115,38 @@ pub async fn run() {
                 let mut interval = tokio::time::interval(Duration::from_secs(15));
                 loop {
                     interval.tick().await;
-                    let window = app_handle.get_webview_window("main").unwrap();
-                    if let Some(update) = app_handle.updater().unwrap().check().await.unwrap() {
-                        let _ = window.emit("update", updater::UpdateInfo::new(
-                            true,
-                            update.version,
-                        ));
-                    } else {
-                        let _ = window.emit("update", updater::UpdateInfo::new(
-                            false,
-                            "".to_string(),
-                        ));
+                    let window = match app_handle.get_webview_window("main") {
+                        Some(w) => w,
+                        None => {
+                            warn!("Update checker: could not get main window");
+                            continue;
+                        }
+                    };
+                    let updater = match app_handle.updater() {
+                        Ok(u) => u,
+                        Err(e) => {
+                            error!("Update checker: error getting updater: {:?}", e);
+                            continue;
+                        }
+                    };
+                    let check_result = updater.check().await;
+                    match check_result {
+                        Ok(Some(update)) => {
+                            let _ = window.emit("update", updater::UpdateInfo::new(
+                                true,
+                                update.version,
+                            ));
+                        },
+                        Ok(None) => {
+                            let _ = window.emit("update", updater::UpdateInfo::new(
+                                false,
+                                "".to_string(),
+                            ));
+                        },
+                        Err(e) => {
+                            warn!("Update checker: error during update check: {:?}", e);
+                            continue;
+                        }
                     }
                 }
             });
@@ -132,10 +155,12 @@ pub async fn run() {
             let data_dir: std::path::PathBuf = app.path().app_data_dir().unwrap();
             let _nockchain_dir = data_dir.join("nockchain"); // unused for now
             let wallet_dir = data_dir.join("wallet");
+            let watcher_dir = data_dir.join("watcher");
 
             // setup wallet thread using the restartable thread function
             let (wallet_tx, wallet_rx) = mpsc::channel::<manager::WalletCommand>();
-            let wallet_dir_clone = wallet_dir.clone();
+            let wallet_dir_for_watcher = wallet_dir.clone();
+            let wallet_dir_for_cmd = wallet_dir.clone();
             let shutdown_signal_wallet = shutdown_signal.clone(); // Use the main app shutdown signal
 
             spawn_restartable_thread(
@@ -156,14 +181,13 @@ pub async fn run() {
                         // Clone necessary data for each command processing, if WalletApp::run consumes or modifies them
                         // and a panic could leave them in an inconsistent state for subsequent commands in *this* run.
                         // However, a panic in WalletApp::run will be caught by the supervisor, restarting the whole worker.
-                        let wallet_dir_for_cmd = wallet_dir_clone.clone();
                         let command_to_run = cmd.command; // If WalletCommand is not Clone, this moves.
 
                         info!("Wallet thread: processing command...");
 
                         let result = runtime.block_on(WalletApp::run(
                             command_to_run, 
-                            wallet_dir_for_cmd,
+                            wallet_dir_for_cmd.clone(),
                         ));
 
                         if cmd.response.send(result).is_err() {
@@ -199,6 +223,14 @@ pub async fn run() {
                 let res = wallet_lock.initialize().await;
                 if let Err(e) = res {
                     eprintln!("Error initializing wallet: {}", e);
+                }
+            });
+
+            tauri::async_runtime::spawn(async move {
+                let watcher = Watcher::new(watcher_dir, wallet_dir_for_watcher);
+                let res = watcher.start().await;
+                if let Err(e) = res {
+                    eprintln!("Error starting watcher: {}", e);
                 }
             });
             

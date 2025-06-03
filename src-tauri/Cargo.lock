@@ -43,6 +43,7 @@ dependencies = [
  "getrandom 0.2.16",
  "kernels",
  "key-utils",
+ "libc",
  "libp2p 0.55.0",
  "network_helpers_sv2",
  "nockapp",

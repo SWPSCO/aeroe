@@ -60,6 +60,7 @@ nockchain-wallet-lib = { path = "../vendor/nockchain/crates/nockchain-wallet-lib
 nockvm_macros = { path = "../vendor/nockchain/crates/nockvm/rust/nockvm_macros" }
 nockchain-bitcoin-sync = { path = "../vendor/nockchain/crates/nockchain-bitcoin-sync" }
 nockchain-libp2p-io = { path = "../vendor/nockchain/crates/nockchain-libp2p-io" }
+libc = "0.2.172"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
