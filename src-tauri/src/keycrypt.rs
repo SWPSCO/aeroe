@@ -1,14 +1,15 @@
 // keycrypt.rs
 
 use std::fs;
-use std::io::{Cursor, Read, Write, BufReader, BufWriter};
+use std::io::{Cursor, Read};
 use std::path::PathBuf;
 
 use argon2::{Argon2, Params, Algorithm, Version};
 use chacha20poly1305::{XChaCha20Poly1305, Key, XNonce};
-use chacha20poly1305::aead::{Aead, NewAead};
-use rand_core::{OsRng, RngCore};
-use base64;
+use chacha20poly1305::aead::{Aead, KeyInit};
+use rand::rngs::OsRng;
+use rand::RngCore;
+use base64::{engine::general_purpose, Engine as _};
 
 /// Magic header to identify our file format/version.
 const HEADER_MAGIC: &[u8] = b"79CLOVER"; // 8 bytes
@@ -42,7 +43,7 @@ impl Keycrypt {
         }
     }
 
-    pub fn load(&mut self, password: String) -> Result<()> {
+    pub fn load(&mut self, password: String) -> Result<(), String> {
         self.password = password;
         self.decrypt()?;
         self.loaded = true;
@@ -51,14 +52,15 @@ impl Keycrypt {
 
     /// Encrypts `self.data` (joined by newlines) using `self.password`,
     /// and writes a Base64‐encoded ciphertext file to `self.enc`.
-    pub fn write(&self) -> Result<()> {
+    pub fn write(&self) -> Result<(), String> {
         // 1) Serialize `self.data` to plaintext bytes
         let plaintext = self.data.join("\n");
         let plaintext_bytes = plaintext.as_bytes();
 
         // 2) Generate a random salt
         let mut salt = [0u8; SALT_LEN];
-        OsRng.fill_bytes(&mut salt);
+        let mut rng = OsRng;
+        rng.fill_bytes(&mut salt);
 
         // 3) Derive a 32‐byte key via Argon2id
         //    Params: memory = 19 * 1024 KiB = 19 MiB, iterations = 2, parallelism = 1
@@ -73,7 +75,7 @@ impl Keycrypt {
         // 4) Initialize XChaCha20‐Poly1305 and generate a random nonce
         let cipher = XChaCha20Poly1305::new(Key::from_slice(&key_bytes));
         let mut nonce_bytes = [0u8; NONCE_LEN];
-        OsRng.fill_bytes(&mut nonce_bytes);
+        rng.fill_bytes(&mut nonce_bytes);
         let nonce = XNonce::from_slice(&nonce_bytes);
 
         // 5) Encrypt + authenticate
@@ -89,7 +91,7 @@ impl Keycrypt {
         payload.extend_from_slice(&ciphertext);
 
         // 7) Base64‐encode and write to disk
-        let b64_payload = base64::encode(&payload);
+        let b64_payload = general_purpose::STANDARD.encode(&payload);
         fs::write(&self.enc, b64_payload)
             .map_err(|e| format!("Failed to write encrypted file: {}", e))?;
 
@@ -103,13 +105,13 @@ impl Keycrypt {
 
     /// Reads the Base64‐encoded ciphertext from `self.enc`, decrypts it using `self.password`,
     /// and loads the resulting plaintext (split on `\n`) into `self.data`.
-    pub fn decrypt(&mut self) -> Result<()> {
+    pub fn decrypt(&mut self) -> Result<(), String> {
         // 1) Read Base64 string from disk
         let b64_payload = fs::read_to_string(&self.enc)
             .map_err(|e| format!("Failed to read encrypted file: {}", e))?;
 
         // 2) Decode Base64 → raw payload
-        let payload = base64::decode(&b64_payload)
+        let payload = general_purpose::STANDARD.decode(&b64_payload)
             .map_err(|e| format!("Base64 decoding failed: {}", e))?;
 
         // Use a Cursor to parse out header, salt, nonce, and ciphertext
