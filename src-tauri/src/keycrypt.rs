@@ -8,7 +8,7 @@ use argon2::{Argon2, Params, Algorithm, Version};
 use chacha20poly1305::{XChaCha20Poly1305, Key, XNonce};
 use chacha20poly1305::aead::{Aead, KeyInit};
 use rand::rngs::OsRng;
-use rand::RngCore;
+use rand_core::TryRngCore;
 use base64::{engine::general_purpose, Engine as _};
 
 /// Magic header to identify our file format/version.
@@ -59,8 +59,7 @@ impl Keycrypt {
 
         // 2) Generate a random salt
         let mut salt = [0u8; SALT_LEN];
-        let mut rng = OsRng;
-        rng.fill_bytes(&mut salt);
+        OsRng.try_fill_bytes(&mut salt).map_err(|e| format!("Failed to fill salt: {e}"))?;
 
         // 3) Derive a 32‐byte key via Argon2id
         //    Params: memory = 19 * 1024 KiB = 19 MiB, iterations = 2, parallelism = 1
@@ -75,7 +74,7 @@ impl Keycrypt {
         // 4) Initialize XChaCha20‐Poly1305 and generate a random nonce
         let cipher = XChaCha20Poly1305::new(Key::from_slice(&key_bytes));
         let mut nonce_bytes = [0u8; NONCE_LEN];
-        rng.fill_bytes(&mut nonce_bytes);
+        OsRng.try_fill_bytes(&mut nonce_bytes).map_err(|e| format!("Failed to fill nonce: {e}"))?;
         let nonce = XNonce::from_slice(&nonce_bytes);
 
         // 5) Encrypt + authenticate
