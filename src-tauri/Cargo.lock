@@ -31,10 +31,12 @@ dependencies = [
 name = "aeroe"
 version = "0.0.0"
 dependencies = [
+ "argon2",
  "async-channel",
  "async-oneshot",
  "base64 0.21.7",
  "bs58 0.5.1",
+ "chacha20poly1305",
  "chrono",
  "clap",
  "codec_sv2",
@@ -53,6 +55,7 @@ dependencies = [
  "nockchain-wallet-lib",
  "nockvm",
  "nockvm_macros",
+ "rand_core 0.9.3",
  "reqwest 0.11.27",
  "roles_logic_sv2",
  "serde",

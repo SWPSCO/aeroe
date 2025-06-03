@@ -2,6 +2,7 @@ mod commands;
 mod manager;
 mod wallet_app;
 mod watcher;
+mod keycrypt;
 
 use std::sync::mpsc;
 use tokio::sync::Mutex;
@@ -12,6 +13,7 @@ use tauri_plugin_updater::UpdaterExt;
 
 use crate::watcher::Watcher;
 use crate::wallet_app::WalletApp;
+use crate::keycrypt::Keycrypt;
 use crate::commands::{
     wallet,
     terms,
@@ -156,6 +158,7 @@ pub async fn run() {
             let _nockchain_dir = data_dir.join("nockchain"); // unused for now
             let wallet_dir = data_dir.join("wallet");
             let watcher_dir = data_dir.join("watcher");
+            let keycrypt_dir = data_dir.join("seed");
 
             // setup wallet thread using the restartable thread function
             let (wallet_tx, wallet_rx) = mpsc::channel::<manager::WalletCommand>();
@@ -211,10 +214,14 @@ pub async fn run() {
 
             // Initialize wallet manager
             let wallet_manager = manager::Wallet::new(wallet_tx);
+
+            // Initialize keycrypt
+            let keycrypt = Keycrypt::new(keycrypt_dir);
             
             // load tauri state
             app.manage(Mutex::new(terms_state));
             app.manage(Mutex::new(wallet_manager));
+            app.manage(Mutex::new(keycrypt));
 
             let app_handle_wallet = app.handle().clone();
             tauri::async_runtime::spawn(async move {
