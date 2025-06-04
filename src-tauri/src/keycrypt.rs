@@ -43,6 +43,17 @@ impl Keycrypt {
         }
     }
 
+    /// Returns true if the encrypted file exists.
+    pub fn exists(&self) -> bool {
+        self.enc.exists() && self.enc.is_file()
+    }
+
+    /// Returns true if the encrypted file has been loaded and decrypted.
+    pub fn is_loaded(&self) -> bool {
+        self.loaded
+    }
+
+    /// Loads the encrypted file and decrypts it using the provided password.
     pub fn load(&mut self, password: String) -> Result<(), String> {
         self.password = password;
         self.decrypt()?;

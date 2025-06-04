@@ -13,6 +13,10 @@ async function handleInvoke(command, args) {
     }
 }
 
+export const keycrypt = {
+    exists: async () => handleInvoke('kc_exists'),
+}
+
 export const updater = {
     downloadAndInstallUpdate: async () => handleInvoke('download_and_install_update'),
 }
