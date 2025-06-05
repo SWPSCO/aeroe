@@ -1,45 +1,61 @@
 ## New User Flow
 
-1. download the app
-2. open the app
-3. user is presented with terms of use with an accept button
-4. user is presented with a privacy policy with an accept button
-5. user presented with "create local password prompt" -- this is a password that is used to encrypt the user's data
-6. user enters a password
-7. user is presented with two buttons: "import wallet" or "create wallet"
+1.  User downloads and opens the app.
+2.  User is presented with Terms of Use and must click "Accept" to continue.
+3.  User is presented with a Privacy Policy and must click "Accept" to continue.
+4.  User is presented with a "Create Local Password" prompt.
+    -   This password encrypts the user's local wallet data.
+    -   The UI will have two fields: "Password" and "Confirm Password".
+    -   A strong warning will be displayed: **"This password cannot be recovered. If you forget it, you will need your 24-word recovery phrase to restore access to your wallet."**
+5.  User enters and confirms their password.
+6.  User is presented with two buttons: "Import Wallet" or "Create Wallet".
 
-### Import wallet
-1. user is presented with 24 input boxes for the 24 words of the seed phrase
-2. user enters the 24 words of the seed phrase
-3. user hits the import button
-4. loading screen
-5. sent to the wallet page (dashboard)
+### Import Wallet Flow
 
-### Create wallet
-1. user is presented with 24 input boxes for the 24 words of the seed phrase
-2. user enters the 24 words of the seed phrase for confirmation
-4. loading screen
-5. sent to the wallet page (dashboard)
+1.  User is presented with 24 input boxes for their 24-word recovery phrase.
+2.  User enters the 24 words.
+3.  User clicks the "Import" button.
+4.  The application validates the recovery phrase.
+    -   **On Success:** A loading screen is shown, and the user is taken to the Wallet Dashboard.
+    -   **On Failure (Invalid Phrase):** An error message is displayed (e.g., "Invalid recovery phrase. Please check your words and try again."). The user remains on the import screen to correct their entry.
+5.  The user is sent to the Wallet Dashboard.
+
+### Create Wallet Flow
+
+1.  The application generates a new, cryptographically secure 24-word recovery phrase.
+2.  The phrase is displayed to the user with prominent warnings:
+    -   "This is your recovery phrase. Write it down in the correct order and store it in a safe, offline location."
+    -   "Never share this phrase with anyone. Anyone with this phrase can access your funds."
+3.  The user clicks a button like "I Have Saved My Phrase" to proceed to a verification step.
+4.  The application prompts the user to verify their phrase to ensure it was backed up correctly.
+    -   Example: "To confirm, please enter word #3, #8, and #21 from your phrase."
+5.  The user enters the requested words.
+    -   **On Success:** The user is taken to the Wallet Dashboard.
+    -   **On Failure:** An error message is shown, and the user is given the option to try again or go back to view their phrase.
+6.  The user is sent to the Wallet Dashboard.
 
 ## Existing User Flow
-1. open the app
-2. user is presented with "enter local password prompt"
-3. user enters the password, which decrypts the user data and shows them a list of their wallets
-4. user selects a wallet
-5. user is presented with the wallet page (dashboard)
+
+1.  User opens the app.
+2.  User is presented with an "Enter Local Password" prompt to decrypt their wallet data.
+3.  User enters their password.
+    -   **On Success:** The user is taken directly to the Wallet Dashboard.
+    -   **On Failure (Incorrect Password):** An error message is displayed. The user is allowed to try again.
 
 ## Dashboard
 
-### Wallet page
-1. balance
-2. send
-3. receive
-4. transaction history
-5. toggle for switching between wallets
+### Wallet Page
 
-### Mining page
-1. login for nockpool
-2. button for solo mining
+1.  Balance display
+2.  "Send" button/feature
+3.  "Receive" button/feature
+4.  Transaction history list
 
-### Explorer page
-1. block explorer, tbd
+### Mining Page
+
+1.  Login for Nockpool
+2.  Button for solo mining
+
+### Explorer Page
+
+1.  Block explorer (TBD)
