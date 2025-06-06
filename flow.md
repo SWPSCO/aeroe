@@ -28,8 +28,8 @@
     -   "Never share this phrase with anyone. Anyone with this phrase can access your funds."
 3.  The user clicks a button like "I Have Saved My Phrase" to proceed to a verification step.
 4.  The application prompts the user to verify their phrase to ensure it was backed up correctly.
-    -   Example: "To confirm, please enter word #3, #8, and #21 from your phrase."
-5.  The user enters the requested words.
+    -   Example: "To confirm, please enter your seed phrase ."
+5.  The user enters the their seed phrase.
     -   **On Success:** The user is taken to the Wallet Dashboard.
     -   **On Failure:** An error message is shown, and the user is given the option to try again or go back to view their phrase.
 6.  The user is sent to the Wallet Dashboard.

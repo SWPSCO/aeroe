@@ -13,3 +13,4 @@ nockchain.sock
 .data.wallet
 .nockchain_identity
 .nockchain_identity.peerid
+.aider*
