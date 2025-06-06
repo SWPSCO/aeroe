@@ -10,7 +10,7 @@
     let privacyPolicyAccepted = $state(false);
     $effect(() => {
         if (termsOfUseAccepted && privacyPolicyAccepted) {
-            goto("/wallet");
+            goto("/welcome");
         }
     });
     let error: unknown | null = $state(null);
@@ -46,14 +46,7 @@
         await checkTermsAccepted();
         await checkPrivacyAccepted();
         if (termsOfUseAccepted && privacyPolicyAccepted) {
-            goto("/wallet");
-            /*
-            if (await keycrypt.exists()) {
-                goto("/wallet");
-            } else {
-                goto("/welcome");
-            }
-            */
+            goto("/welcome");
         } else {
             pageIsReady = true;
         }
