@@ -2,7 +2,7 @@
 	import '../../app.css';
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
-    import { status, get } from '$lib/scripts/wallet-commands';
+    import { status, get } from '$lib/scripts/commands';
     import { walletLoaded, walletBalance, walletMasterPubkey } from '$lib/scripts/stores';
 
 	import MainArea from '$lib/components/MainArea.svelte';

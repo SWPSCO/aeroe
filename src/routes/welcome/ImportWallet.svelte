@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { poke, peek, set } from '$lib/scripts/wallet-commands';
+    import { poke, peek, set } from '$lib/scripts/commands';
     import { goto } from '$app/navigation';
 
     let phrase: string[] = $state(Array(24).fill(''));

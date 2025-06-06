@@ -3,6 +3,7 @@
 use std::fs;
 use std::io::{Cursor, Read};
 use std::path::PathBuf;
+use std::collections::HashMap;
 
 use argon2::{Argon2, Params, Algorithm, Version};
 use chacha20poly1305::{XChaCha20Poly1305, Key, XNonce};
@@ -18,13 +19,10 @@ const HEADER_MAGIC: &[u8] = b"79CLOVER"; // 8 bytes
 const SALT_LEN: usize = 16;
 const NONCE_LEN: usize = 24;
 
-/// `Keycrypt` stores:
-/// - `data`: decrypted contents as an array of strings (each line)
-/// - `password`: the passphrase used for encryption/decryption
-/// - `enc`: path to the encrypted file on disk
+#[derive(Debug)]
 pub struct Keycrypt {
     loaded: bool,
-    data: Vec<String>,
+    data: HashMap<String, String>,
     password: String,
     enc: PathBuf,
 }
@@ -37,14 +35,14 @@ impl Keycrypt {
     pub fn new(enc: PathBuf) -> Self {
         Keycrypt {
             loaded: false,
-            data: Vec::new(),
+            data: HashMap::new(),
             password: String::new(),
             enc,
         }
     }
 
     /// Returns true if the encrypted file exists.
-    pub fn exists(&self) -> bool {
+    pub fn vault_exists(&self) -> bool {
         self.enc.exists() && self.enc.is_file()
     }
 
@@ -53,19 +51,63 @@ impl Keycrypt {
         self.loaded
     }
 
+    pub fn create(&mut self, password: String) -> Result<(), String> {
+        self.password = password;
+        self.write()?;
+        self.loaded = true;
+        tracing::debug!("create: {:?}", self);
+        Ok(())
+    }
+
     /// Loads the encrypted file and decrypts it using the provided password.
     pub fn load(&mut self, password: String) -> Result<(), String> {
         self.password = password;
         self.decrypt()?;
         self.loaded = true;
+        tracing::debug!("load: {:?}", self);
+        Ok(())
+    }
+
+    /// Returns a list of all wallet names.
+    pub fn get_wallets(&self) -> Vec<String> {
+        self.data.keys().cloned().collect()
+    }
+    pub fn get_seedphrase(&self, wallet_name: String) -> Result<String, String> {
+        if !self.loaded {
+            return Err("Vault not loaded".to_string());
+        }
+        if !self.data.contains_key(&wallet_name) {
+            return Err(format!("Wallet {} not found", wallet_name));
+        }
+        Ok(self.data.get(&wallet_name).unwrap().clone())
+    }
+
+    pub fn add_wallet(&mut self, wallet_name: String, seedphrase: String) -> Result<(), String> {
+        if !self.loaded {
+            return Err("Vault not loaded".to_string());
+        }
+        if self.data.contains_key(&wallet_name) {
+            return Err(format!("Wallet {} already exists", wallet_name));
+        }
+        self.data.insert(wallet_name, seedphrase);
+        self.write()?;
+        tracing::debug!("add_wallet: {:?}", self);
         Ok(())
     }
 
     /// Encrypts `self.data` (joined by newlines) using `self.password`,
     /// and writes a Base64‐encoded ciphertext file to `self.enc`.
-    pub fn write(&self) -> Result<(), String> {
+    fn write(&self) -> Result<(), String> {
         // 1) Serialize `self.data` to plaintext bytes
-        let plaintext = self.data.join("\n");
+        // We'll use a simple format: key\tvalue per line
+        let mut lines = Vec::new();
+        for (k, v) in &self.data {
+            // Escape tabs and newlines in keys/values for safety
+            let k = k.replace('\t', "\\t").replace('\n', "\\n");
+            let v = v.replace('\t', "\\t").replace('\n', "\\n");
+            lines.push(format!("{}\t{}", k, v));
+        }
+        let plaintext = lines.join("\n");
         let plaintext_bytes = plaintext.as_bytes();
 
         // 2) Generate a random salt
@@ -109,13 +151,13 @@ impl Keycrypt {
     }
 
     /// Wipes (clears) the in‐memory plaintext data.
-    pub fn wipe(&mut self) {
+    fn wipe(&mut self) {
         self.data.clear();
     }
 
     /// Reads the Base64‐encoded ciphertext from `self.enc`, decrypts it using `self.password`,
     /// and loads the resulting plaintext (split on `\n`) into `self.data`.
-    pub fn decrypt(&mut self) -> Result<(), String> {
+    fn decrypt(&mut self) -> Result<(), String> {
         // 1) Read Base64 string from disk
         let b64_payload = fs::read_to_string(&self.enc)
             .map_err(|e| format!("Failed to read encrypted file: {}", e))?;
@@ -173,11 +215,16 @@ impl Keycrypt {
         // 6) Convert plaintext to UTF‐8 and split lines
         let plaintext_str = String::from_utf8(plaintext_bytes)
             .map_err(|e| format!("Decrypted data is not valid UTF-8: {}", e))?;
-        self.data = plaintext_str
-            .lines()
-            .map(|line| line.to_string())
-            .collect();
-
+        let mut map = HashMap::new();
+        for line in plaintext_str.lines() {
+            if let Some((k, v)) = line.split_once('\t') {
+                // Unescape tabs and newlines
+                let k = k.replace("\\t", "\t").replace("\\n", "\n");
+                let v = v.replace("\\t", "\t").replace("\\n", "\n");
+                map.insert(k, v);
+            }
+        }
+        self.data = map;
         Ok(())
     }
 }

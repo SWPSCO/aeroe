@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { poke, peek, set } from "$lib/scripts/wallet-commands";
+    import { poke, peek, set } from "$lib/scripts/commands";
     import { goto } from "$app/navigation";
 
     let phrase: string[] = $state([]);

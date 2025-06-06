@@ -9,19 +9,14 @@ mod wallet_thread;
 use std::sync::mpsc;
 use tokio::sync::Mutex;
 
-use tauri::{Emitter, Manager};
+use tauri::{Emitter, Manager, AppHandle};
 
 use tauri_plugin_updater::UpdaterExt;
 
 use crate::watcher::Watcher;
 use crate::wallet_app::WalletApp;
 use crate::keycrypt::Keycrypt;
-use crate::commands::{
-    wallet,
-    terms,
-    updater,
-    kc,
-};
+use crate::commands::*;
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -48,48 +43,21 @@ pub async fn run() {
                 let mut interval = tokio::time::interval(Duration::from_secs(15));
                 loop {
                     interval.tick().await;
-                    let window = match app_handle.get_webview_window("main") {
-                        Some(w) => w,
-                        None => {
-                            warn!("Update checker: could not get main window");
-                            continue;
-                        }
-                    };
-                    let updater = match app_handle.updater() {
-                        Ok(u) => u,
-                        Err(e) => {
-                            error!("Update checker: error getting updater: {:?}", e);
-                            continue;
-                        }
-                    };
-                    let check_result = updater.check().await;
-                    match check_result {
-                        Ok(Some(update)) => {
-                            let _ = window.emit("update", updater::UpdateInfo::new(
-                                true,
-                                update.version,
-                            ));
-                        },
-                        Ok(None) => {
-                            let _ = window.emit("update", updater::UpdateInfo::new(
-                                false,
-                                "".to_string(),
-                            ));
-                        },
-                        Err(e) => {
-                            warn!("Update checker: error during update check: {:?}", e);
-                            continue;
-                        }
-                    }
+                    check_update(&app_handle).await;
                 }
             });
 
             // data directory for all app data
             let data_dir: std::path::PathBuf = app.path().app_data_dir().unwrap();
+
+            // nockchain node pma location
             let _nockchain_dir = data_dir.join("nockchain"); // unused for now
+            // directory that holds all the wallet pmas
             let wallet_dir = data_dir.join("wallet");
+            // where we'll write the watcher binary and execute from
             let watcher_dir = data_dir.join("watcher");
-            let keycrypt_dir = data_dir.join("seed");
+            // the file we'll store the seedphrases in
+            let keycrypt_dir = data_dir.join("vault");
 
             // setup wallet thread using the restartable thread function
             let (wallet_tx, wallet_rx) = mpsc::channel::<manager::WalletCommand>();
@@ -108,7 +76,7 @@ pub async fn run() {
             let terms_state = TermsState::new(&app.handle());
 
             // Initialize wallet manager
-            let wallet_manager = manager::Wallet::new(wallet_tx);
+            let wallet_manager = manager::Wallet::new(wallet_tx, wallet_dir);
 
             // Initialize keycrypt
             let keycrypt = Keycrypt::new(keycrypt_dir);
@@ -117,16 +85,6 @@ pub async fn run() {
             app.manage(Mutex::new(terms_state));
             app.manage(Mutex::new(wallet_manager));
             app.manage(Mutex::new(keycrypt));
-
-            let app_handle_wallet = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                let wallet_state = app_handle_wallet.state::<Mutex<manager::Wallet>>();
-                let mut wallet_lock = wallet_state.lock().await;
-                let res = wallet_lock.initialize().await;
-                if let Err(e) = res {
-                    error!("Error initializing wallet: {}", e);
-                }
-            });
 
             // start watcher
             tauri::async_runtime::spawn(async move {
@@ -140,10 +98,6 @@ pub async fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            // keycrypt
-            kc::exists,
-            // updater
-            updater::download_and_install_update,
             //
             // terms
             //
@@ -152,23 +106,60 @@ pub async fn run() {
             terms::accept_terms_of_use,
             terms::accept_privacy_policy,
             //
+            // updater
+            //
+            updater::download_and_install_update,
+            //
+            // app
+            //
+            aeroe_status,
+            //
             // wallet
             //
-            // status
-            wallet::is_ready,
-            wallet::is_setup_complete,
-            // get
-            wallet::get_master_pubkey,
-            wallet::get_balance,
-            // set
-            wallet::initialize,
-            // pokes
-            wallet::gen_master_privkey,
-            wallet::gen_master_pubkey,
+            wallet::vault_create,
+            wallet::vault_load,
+            wallet::wallet_create,
             wallet::keygen,
-            // peeks
-            wallet::peek_seedphrase,
+            wallet::wallet_load,
+            wallet::master_pubkey,
+            wallet::balance,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+// Refactored: update checker logic as its own function
+async fn check_update(app_handle: &AppHandle) {
+    let window = match app_handle.get_webview_window("main") {
+        Some(w) => w,
+        None => {
+            warn!("Update checker: could not get main window");
+            return;
+        }
+    };
+    let updater = match app_handle.updater() {
+        Ok(u) => u,
+        Err(e) => {
+            error!("Update checker: error getting updater: {:?}", e);
+            return;
+        }
+    };
+    let check_result = updater.check().await;
+    match check_result {
+        Ok(Some(update)) => {
+            let _ = window.emit("update", updater::UpdateInfo::new(
+                true,
+                update.version,
+            ));
+        },
+        Ok(None) => {
+            let _ = window.emit("update", updater::UpdateInfo::new(
+                false,
+                "".to_string(),
+            ));
+        },
+        Err(e) => {
+            warn!("Update checker: error during update check: {:?}", e);
+        }
+    }
 }

@@ -3,6 +3,7 @@ use nockchain_wallet_lib::Commands;
 use nockvm::noun::Noun;
 use std::sync::mpsc::Sender;
 use tokio::sync::oneshot;
+use std::path::PathBuf;
 
 pub struct WalletCommand {
     pub command: Commands,
@@ -11,80 +12,58 @@ pub struct WalletCommand {
 
 #[derive(Debug)]
 pub struct Wallet {
-    initialized: bool,
-    setup_complete: bool,
+    wallet_dir: PathBuf,
     command_tx: Sender<WalletCommand>,
+    wallet_name: Option<String>,
     //nockchain_rx: Receiver<NockchainEvent>,
-    master_pubkey: String,
+    master_pubkey: Option<String>,
     balance: Option<u64>,
+    latest_block_id: Option<u64>, // not implemented yet
 }
 
 impl Wallet {
     // creates new wallet manager
-    pub fn new(command_tx: Sender<WalletCommand>) -> Self {
+    pub fn new(command_tx: Sender<WalletCommand>, wallet_dir: PathBuf) -> Self {
         Self {
-            initialized: false,
-            setup_complete: false,
+            wallet_dir,
             command_tx,
-            master_pubkey: String::new(),
+            wallet_name: None,
+            master_pubkey: None,
             balance: None,
+            latest_block_id: None,
         }
     }
-    // checks nockapp state and populates manager struct
-    pub async fn initialize(&mut self) -> Result<(), String> {
-        let Ok(pubkey) = self.peek_master_pubkey().await else {
-            self.initialized = true;
-            self.setup_complete = false;
-            return Ok(());
-        };
-        let Ok(balance) = self.peek_balance().await else {
-            self.initialized = true;
-            self.setup_complete = false;
-            return Ok(());
-        };
-
-        self.master_pubkey = pubkey;
-        self.balance = Some(balance);
-        self.setup_complete = true;
-        self.initialized = true;
+    pub async fn clear_state(&self) -> Result<(), String> {
+        std::fs::remove_dir_all(self.wallet_dir.clone()).map_err(|e| e.to_string())?;
         Ok(())
     }
-    // initialization status
-    pub fn is_initialized(&self) -> bool {
-        self.initialized
+    pub fn get_active_wallet(&self) -> Option<String> {
+        self.wallet_name.clone()
     }
-    // wallet keypair exists
-    pub fn is_setup_complete(&self) -> bool {
-        self.setup_complete
+    pub async fn load(&mut self, wallet_name: String) -> Result<(), String> {
+        self.wallet_name = Some(wallet_name);
+        let pubkey = self.peek_master_pubkey().await?;
+        self.master_pubkey = Some(pubkey);
+        let balance = self.peek_balance().await?;
+        self.balance = Some(balance);
+        Ok(())
     }
-    //
-    // fetches from memory
-    //
-    pub fn get_master_pubkey(&self) -> String {
-        self.master_pubkey.clone()
-    }
-    pub fn get_balance(&self) -> Result<u64, String> {
+    pub async fn get_balance(&self) -> Result<u64, String> {
+        // TODO: check latest block id and if it's different from the one we have, update the balance
         let Some(balance) = self.balance else {
-            return Err("balance not initialized".to_string());
+            return Err("balance is not set".to_string());
         };
         Ok(balance)
+    }
+    pub async fn get_master_pubkey(&self) -> Result<String, String> {
+        let Some(pubkey) = self.master_pubkey.clone() else {
+            return Err("master pubkey is not set".to_string());
+        };
+        Ok(pubkey)
     }
     //
     // peeks
     //
-    pub async fn peek_master_pubkey(&self) -> Result<String, String> {
-        let result = self.send_command(Commands::PeekMasterPubkey).await?;
-        let pubkey = Self::clean_peek_noun(result)?;
-        let pubkey_atom = pubkey
-            .as_atom()
-            .map_err(|_| "pubkey: pubkey is not an atom".to_string())?;
-        let pubkey_bytes = pubkey_atom.as_ne_bytes();
-        let actual_pubkey_str = std::str::from_utf8(pubkey_bytes)
-            .map_err(|e| format!("pubkey: pubkey atom bytes are not valid UTF-8: {}", e))?
-            .to_string();
-
-        Ok(actual_pubkey_str.replace("\u{0000}", ""))
-    }
     pub async fn peek_seedphrase(&self) -> Result<Vec<String>, String> {
         let result = self.send_command(Commands::PeekSeedphrase).await?;
         let phrase = Self::clean_peek_noun(result)?;
@@ -107,7 +86,20 @@ impl Wallet {
             .collect::<Vec<String>>();
         Ok(cleaned_words)
     }
-    pub async fn peek_balance(&self) -> Result<u64, String> {
+    async fn peek_master_pubkey(&self) -> Result<String, String> {
+        let result = self.send_command(Commands::PeekMasterPubkey).await?;
+        let pubkey = Self::clean_peek_noun(result)?;
+        let pubkey_atom = pubkey
+            .as_atom()
+            .map_err(|_| "pubkey: pubkey is not an atom".to_string())?;
+        let pubkey_bytes = pubkey_atom.as_ne_bytes();
+        let actual_pubkey_str = std::str::from_utf8(pubkey_bytes)
+            .map_err(|e| format!("pubkey: pubkey atom bytes are not valid UTF-8: {}", e))?
+            .to_string();
+
+        Ok(actual_pubkey_str.replace("\u{0000}", ""))
+    }
+    async fn peek_balance(&self) -> Result<u64, String> {
         let result = self.send_command(Commands::PeekBalance).await?;
         let noun = Self::clean_peek_noun(result)?;
         let atom = noun
@@ -130,10 +122,13 @@ impl Wallet {
         let _ = self.send_command(Commands::GenMasterPrivkey { seedphrase }).await?;
         Ok(())
     }
+    /*  
+    // we dont use this so disabled for now
     pub async fn gen_master_pubkey(&self, master_privkey: String) -> Result<(), String> {
         let _ = self.send_command(Commands::GenMasterPubkey { master_privkey }).await?;
         Ok(())
     }
+    */
     /*
     //
     // listens for new blocks and updates data accordingly

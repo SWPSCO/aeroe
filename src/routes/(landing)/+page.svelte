@@ -1,7 +1,7 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
     import { onMount } from 'svelte';
-    import { terms, keycrypt } from '$lib/scripts/wallet-commands';
+    import { terms } from '$lib/scripts/commands';
     import TermsOfUse from './TermsOfUse.svelte';
     import PrivacyPolicy from './PrivacyPolicy.svelte';
 
@@ -43,20 +43,20 @@
     }
 
     onMount(async () => {
+        goto("/dev");
+        /*
         await checkTermsAccepted();
         await checkPrivacyAccepted();
         if (termsOfUseAccepted && privacyPolicyAccepted) {
-            goto("/wallet");
-            /*
             if (await keycrypt.exists()) {
                 goto("/wallet");
             } else {
                 goto("/welcome");
             }
-            */
         } else {
             pageIsReady = true;
         }
+        */
     });
 
 </script>

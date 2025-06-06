@@ -33,7 +33,7 @@ yarn tauri build
   - lib: shared code, components and javascript libraries
     - components: svelte components
     - scripts/stores.js: svelte stores, used for global state management
-    - scripts/wallet-commands.js: command api for interacting with tauri, should probably be renamed to something more general
+    - scripts/commands.js: command api for interacting with tauri, should probably be renamed to something more general
     - scripts/mock-data.js: legacy code, used for mocking data for the frontend
   - routes: svelte pages
     - (landing): this is basically just the root page `/`, the `()` in the folder name is so that we can scope the `+layout.svelte` file to this route
