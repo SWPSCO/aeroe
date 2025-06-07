@@ -19,6 +19,10 @@ async function handleInvoke(command, args) {
     }
 }
 
+async function notImplemented() {
+    return { success: false, error: "Not implemented" };
+}
+
 /*
     These are the commands for the terms of use and privacy policy.
     Note that the frontend MUST NEVER show any other pages as long as terms and privacy are not accepted.
@@ -87,26 +91,30 @@ export const wallet = {
      * @param {string} walletName
      */
     balance: async (walletName) => handleInvoke('balance', { walletName }),
-    //
-    //
-    // beyond this point, shit's not implemented yet.
-    //
-    //
+    // TODO:
     /**
      * @param {string} walletName
      */
-    getHistory: async (walletName) => {},
+    getHistory: async (walletName) => notImplemented(),
     /**
      * @param {string} walletName
      */
-    listDrafts: async (walletName) => {},
+    listDrafts: async (walletName) => notImplemented(),
     /**
      * @param {string} walletName
      */
-    createDraft: async (walletName) => {},
+    createDraft: async (walletName) => notImplemented(),
     /**
      * @param {string} walletName
      * @param {string} draftId
      */
-    sendTransaction: async (walletName, draftId) => {},
+    sendTransaction: async (walletName, draftId) => notImplemented(),
+}
+
+/*
+    These are commands for managing the nockchain node. Still immature, do not use.
+*/
+export const node = {
+    startMaster: async () => handleInvoke('node_start_master'),
+    stopMaster: async () => handleInvoke('node_stop_master'),
 }

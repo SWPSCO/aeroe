@@ -7,6 +7,10 @@
     let walletLoad: any = $state(undefined);
     let walletMasterPubkey: any = $state(undefined);
     let walletBalance: any = $state(undefined);
+    let walletHistory: any = $state(undefined);
+    let drafts: any = $state(undefined);
+    let draft: any = $state(undefined);
+    let txResult: any = $state(undefined);
 
     let keygenLoading: boolean = $state(false);
     let loadLoading: boolean = $state(false);
@@ -50,6 +54,26 @@
         const res = await wallet.balance(loadWalletName);   
         walletBalance = res;
     }
+
+    const getHistory = async () => {
+        const res = await wallet.getHistory(loadWalletName);
+        walletHistory = res;
+    }
+
+    const listDrafts = async () => {
+        const res = await wallet.listDrafts(loadWalletName);
+        drafts = res;
+    }
+
+    const createDraft = async () => {
+        const res = await wallet.createDraft(loadWalletName);
+        draft = res;
+    }
+
+    const sendTransaction = async () => {
+        const res = await wallet.sendTransaction(loadWalletName, draft.id);
+        txResult = res;
+    }
 </script>
 
 <div class="flex flex-col gap-4 border-2 border-dark p-4">
@@ -82,5 +106,25 @@
         <div>Wallet balance:</div>
         <Button onClick={getBalance} disabled={false}>Balance</Button>
         <div>{JSON.stringify(walletBalance)}</div>
+    </div>
+    <div class="flex gap-4 text-xs font-title items-center">
+        <div>Wallet history:</div>
+        <Button onClick={getHistory} disabled={false}>History</Button>
+        <div>{JSON.stringify(walletHistory)}</div>
+    </div>
+    <div class="flex gap-4 text-xs font-title items-center">
+        <div>List drafts:</div>
+        <Button onClick={listDrafts} disabled={false}>List</Button>
+        <div>{JSON.stringify(drafts)}</div>
+    </div>
+    <div class="flex gap-4 text-xs font-title items-center">
+        <div>Create draft:</div>
+        <Button onClick={createDraft} disabled={false}>Create</Button>
+        <div>{JSON.stringify(draft)}</div>
+    </div>
+    <div class="flex gap-4 text-xs font-title items-center">
+        <div>Send transaction:</div>
+        <Button onClick={sendTransaction} disabled={false}>Send</Button>
+        <div>{JSON.stringify(txResult)}</div>
     </div>
 </div>

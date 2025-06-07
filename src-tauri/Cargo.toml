@@ -59,6 +59,7 @@ nockchain-wallet-lib = { git = "https://github.com/swpsco/nockchain-wallet-lib.g
 nockchain = { git = "https://github.com/swpsco/nockchain.git", rev = "c4ccfa9031ea8138076bb6bb9c76dc44b6dbe40e", package = "nockchain" }
 nockvm = { git = "https://github.com/swpsco/nockchain.git", rev = "c4ccfa9031ea8138076bb6bb9c76dc44b6dbe40e", package = "nockvm" }
 nockapp = { git = "https://github.com/swpsco/nockchain.git", rev = "c4ccfa9031ea8138076bb6bb9c76dc44b6dbe40e", package = "nockapp" }
+kernels = { git = "https://github.com/swpsco/nockchain.git", rev = "c4ccfa9031ea8138076bb6bb9c76dc44b6dbe40e", package = "kernels" }
 zkvm-jetpack = { git = "https://github.com/swpsco/nockchain.git", rev = "c4ccfa9031ea8138076bb6bb9c76dc44b6dbe40e", package = "zkvm-jetpack" }
 nockvm_macros = { git = "https://github.com/swpsco/nockchain.git", rev = "c4ccfa9031ea8138076bb6bb9c76dc44b6dbe40e", package = "nockvm_macros" }
 nockchain-bitcoin-sync = { git = "https://github.com/swpsco/nockchain.git", rev = "c4ccfa9031ea8138076bb6bb9c76dc44b6dbe40e", package = "nockchain-bitcoin-sync" }

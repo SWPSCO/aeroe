@@ -129,18 +129,6 @@ impl Wallet {
         Ok(())
     }
     */
-    /*
-    //
-    // listens for new blocks and updates data accordingly
-    //
-    pub async fn update_info_loop(&self) -> Result<(), String> {
-        loop {
-            let Ok(pubkey) = self.peek_master_pubkey().await else {
-                return Err("failed to get master pubkey".to_string());
-            };
-        }
-    }
-    */
     //
     // Helpers
     //

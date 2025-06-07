@@ -3,10 +3,11 @@ mod manager;
 mod wallet_app;
 mod watcher;
 mod keycrypt;
-// services.rs is no longer used
+mod prover;
 
 use std::panic::AssertUnwindSafe;
 use tokio::sync::Mutex;
+use prover::Prover;
 
 use tauri::{Emitter, Manager, AppHandle};
 
@@ -21,6 +22,8 @@ use futures::FutureExt;
 use tracing::{error, warn, info};
 use crate::commands::terms::TermsState;
 use crate::wallet_app::WalletApp;
+
+use nockapp::kernel::boot;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub async fn run() {
@@ -42,18 +45,22 @@ pub async fn run() {
             // --- Application Directories ---
             let data_dir: std::path::PathBuf = app.path().app_data_dir().unwrap();
             let wallet_dir = data_dir.join("wallet");
+            let nockchain_dir = data_dir.join("nockchain");
             let watcher_dir = data_dir.join("watcher");
             let keycrypt_dir = data_dir.join("vault");
 
             // --- Wallet Service ---
             let (wallet_tx, wallet_rx) = tokio::sync::mpsc::channel::<manager::WalletCommand>(128);
-
-            // Spawn the service, cloning the directory path for it.
             spawn_wallet_service(wallet_rx, wallet_dir.clone());
+
+            // --- Nockchain Service ---
+            let (nockchain_tx, nockchain_rx) = tokio::sync::mpsc::channel::<manager::NockchainCommand>(128);
+            spawn_nockchain_service(nockchain_rx, nockchain_dir.clone());
             
             // --- Application State Management ---
             app.manage(Mutex::new(TermsState::new(&app.handle())));
             app.manage(Mutex::new(manager::Wallet::new(wallet_tx, wallet_dir.clone())));
+            app.manage(Mutex::new(manager::NockchainNode::new(nockchain_tx)));
             app.manage(Mutex::new(Keycrypt::new(keycrypt_dir)));
 
             // --- Watcher Service ---
@@ -84,6 +91,9 @@ pub async fn run() {
             wallet::wallet_load,
             wallet::master_pubkey,
             wallet::balance,
+            // nockchain node
+            nockchain_node::node_start_master,
+            nockchain_node::node_stop_master,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -122,6 +132,50 @@ async fn check_update(app_handle: &AppHandle) {
             warn!("Update checker: error during update check: {:?}", e);
         }
     }
+}
+
+fn spawn_nockchain_service(mut _nockchain_rx: tokio::sync::mpsc::Receiver<manager::NockchainCommand>, nockchain_dir: std::path::PathBuf) {
+    std::thread::spawn(move || {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        runtime.block_on(async move {
+            // inner
+            std::thread::spawn(move || {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .unwrap();
+                runtime.block_on(async move {
+                    let nc = Prover::new("master".to_string(), nockchain_dir.clone());
+                    let res = nc.start().await;
+                    if let Err(e) = res {
+                        error!("nockchain failed to start: {:?}", e);
+                    }
+                });
+            });
+        })
+
+        /*
+        runtime.block_on(async move {
+            info!("[Nockchain Service] Started on a dedicated OS thread");
+            while let Some(cmd) = nockchain_rx.recv().await {
+                let command_name = format!("{:?}", cmd.command);
+                info!("[Nockchain Service] Received command: {}", command_name);
+                match cmd.command {
+                    manager::NockchainRequest::StartMaster => {
+                        let _ = cmd.response.send(Ok(manager::NockchainResponse::Success));
+                    }
+                    manager::NockchainRequest::StopMaster => {
+                        let _ = cmd.response.send(Ok(manager::NockchainResponse::Success));
+                    }
+                }
+            }
+        });
+        */
+    });
 }
 
 fn spawn_wallet_service(mut wallet_rx: tokio::sync::mpsc::Receiver<manager::WalletCommand>, wallet_dir: std::path::PathBuf) {
