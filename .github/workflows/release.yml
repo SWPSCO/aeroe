@@ -23,7 +23,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
-          submodules: 'recursive'
 
       - name: Get and clean tag name
         id: get_tag
@@ -99,7 +98,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
-          submodules: 'recursive'
 
       - name: Download tauri.conf.json
         uses: actions/download-artifact@v4

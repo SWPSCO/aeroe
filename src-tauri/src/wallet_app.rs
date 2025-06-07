@@ -5,14 +5,13 @@ use tracing::{error, info};
 
 use nockchain_wallet_lib::{Commands, KeyType, Wallet};
 
-use kernels::wallet::KERNEL;
-
 use zkvm_jetpack::hot::produce_prover_hot_state;
 
 use nockapp::kernel::boot::{self, Cli};
 use nockapp::nockapp::NockApp;
 use nockapp::noun::slab::NounSlab;
 use nockapp::{exit_driver, file_driver, markdown_driver, one_punch_driver};
+use kernels::wallet::KERNEL;
 
 pub struct WalletApp {}
 

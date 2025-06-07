@@ -11,9 +11,6 @@ Aeroe Wallet is your go-to tool for managing and mining on Nockchain, offering a
 # install dependencies
 yarn
 
-# install nockchain
-./scripts/prepare_nockchain.sh
-
 # run dev with browser console
 yarn tauri dev
 
@@ -26,9 +23,6 @@ yarn tauri build
 
 ## Project Structure
 
-- VENDOR_COMMIT
-  - git commit hash of the vendored nockchain repo
-  - this isn't really used for development, mainly only used for ci, but you can use it to make sure you're using the correct version of the nockchain repo
 - src: svelte frontend
   - lib: shared code, components and javascript libraries
     - components: svelte components
