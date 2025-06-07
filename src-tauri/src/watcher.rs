@@ -9,7 +9,7 @@ use tracing::warn;
 
 use libc::{pid_t, fork, pipe, setsid, execl, getpid, close, write, read, waitpid, _exit};
 
-const WATCHER_BIN: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/assets/watcher"));
+static WATCHER_BIN: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/watcher"));
 
 #[derive(Debug)]
 pub struct Watcher {

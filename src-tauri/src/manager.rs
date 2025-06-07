@@ -1,7 +1,7 @@
 use nockapp::noun::slab::NounSlab;
 use nockchain_wallet_lib::Commands;
 use nockvm::noun::Noun;
-use std::sync::mpsc::Sender;
+use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 use std::path::PathBuf;
 
@@ -152,6 +152,7 @@ impl Wallet {
                 command,
                 response: resp_tx,
             })
+            .await
             .map_err(|_| "wallet thread gone".to_string())?;
         resp_rx.await.map_err(|_| "no reply".to_string())?
     }

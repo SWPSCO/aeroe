@@ -1,5 +1,5 @@
 use serde::{Serialize, Deserialize};
-use tauri::{AppHandle, Manager, State};
+use tauri::State;
 use tokio::sync::Mutex;
 use crate::keycrypt::Keycrypt;
 use crate::manager::Wallet;
@@ -8,8 +8,8 @@ pub mod wallet;
 pub mod terms;
 pub mod updater;
 
-#[serde(rename_all = "camelCase")]
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct AeroeStatus {
     pub vault_exists: bool,
     pub vault_loaded: bool,

@@ -11,7 +11,7 @@ use nockapp::kernel::boot::{self, Cli};
 use nockapp::nockapp::NockApp;
 use nockapp::noun::slab::NounSlab;
 use nockapp::{exit_driver, file_driver, markdown_driver, one_punch_driver};
-use kernels::wallet::KERNEL;
+static KERNEL: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/wal.jam"));
 
 pub struct WalletApp {}
 
