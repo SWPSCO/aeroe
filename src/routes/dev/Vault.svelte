@@ -9,6 +9,7 @@
     let loadVaultPassword = $state("password");
 
     const createVault = async () => {
+        vaultCreate = undefined;
         const res = await vault.create(createVaultPassword);
         if (res.success) {
             vaultCreate = "Vault created";
@@ -18,6 +19,7 @@
     }
 
     const loadVault = async () => {
+        vaultLoad = undefined;
         const res = await vault.load(loadVaultPassword);
         if (res.success) {
             vaultLoad = "Vault loaded";
