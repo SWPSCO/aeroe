@@ -115,8 +115,8 @@ impl Keycrypt {
         OsRng.try_fill_bytes(&mut salt).map_err(|e| format!("Failed to fill salt: {e}"))?;
 
         // 3) Derive a 32‐byte key via Argon2id
-        //    Params: memory = 19 * 1024 KiB = 19 MiB, iterations = 2, parallelism = 1
-        let params = Params::new(19 * 1024, 2, 1, None)
+        //    Params: memory = 1024 * 1024 KiB = 1024 MiB, iterations = 8, parallelism = 1
+        let params = Params::new(1024 * 1024, 8, 1, None)
             .map_err(|e| format!("Invalid Argon2 params: {}", e))?;
         let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
         let mut key_bytes = [0u8; 32];
@@ -198,7 +198,7 @@ impl Keycrypt {
             .map_err(|e| format!("Failed to read ciphertext bytes: {}", e))?;
 
         // 4) Re‐derive the 32‐byte key via Argon2id
-        let params = Params::new(19 * 1024, 2, 1, None)
+        let params = Params::new(1024 * 1024, 8, 1, None)
             .map_err(|e| format!("Invalid Argon2 params: {}", e))?;
         let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
         let mut key_bytes = [0u8; 32];
