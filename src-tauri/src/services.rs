@@ -160,7 +160,7 @@ async fn start_prover(
             let prover_id = id.clone();
             info!("[Prover {}] Starting...", prover_id);
 
-            let nc = Prover::new(prover_id.clone(), nockchain_dir);
+            let mut nc = Prover::new(prover_id.clone(), nockchain_dir);
             
             tokio::select! {
                 res = nc.start() => {

@@ -35,7 +35,8 @@ clap = { version = "4.5.37", features = ["derive"] }
 base64 = { version = "0.21" }
 chrono = { version = "0.4.41" }
 bs58 = { version = "0.5.1" }
-libp2p = { version = "0.55.0" }
+# libp2p = { version = "0.55.0" }
+libp2p = { git = "https://github.com/libp2p/rust-libp2p.git", rev = "da0017ee887a868e231ed78c7de892779c17800d" }
 equix = { version = "0.2.3" }
 getrandom = { version = "0.2.15", features = ["std"] }
 libc = { version = "0.2.172" }
