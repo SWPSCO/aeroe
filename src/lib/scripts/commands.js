@@ -117,4 +117,9 @@ export const wallet = {
 export const node = {
     startMaster: async () => handleInvoke('node_start_master'),
     stopMaster: async () => handleInvoke('node_stop_master'),
+    /**
+     * @param {string} miningProfile
+     */
+    startMining: async (miningProfile) => handleInvoke('node_start_mining', { miningProfile }),
+    stopMining: async () => handleInvoke('node_stop_mining'),
 }

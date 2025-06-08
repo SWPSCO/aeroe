@@ -5,19 +5,18 @@ mod watcher;
 mod keycrypt;
 mod prover;
 mod services;
+mod update_checker;
 
 use tokio::sync::Mutex;
 
-use tauri::{Emitter, Manager, AppHandle};
-
-use tauri_plugin_updater::UpdaterExt;
+use tauri::Manager;
 
 use crate::watcher::Watcher;
 use crate::keycrypt::Keycrypt;
 use crate::commands::*;
 
 use std::time::Duration;
-use tracing::{error, warn};
+use tracing::error;
 use crate::commands::terms::TermsState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -33,7 +32,7 @@ pub async fn run() {
                 let mut interval = tokio::time::interval(Duration::from_secs(15));
                 loop {
                     interval.tick().await;
-                    check_update(&app_handle).await;
+                    update_checker::check_update(&app_handle).await;
                 }
             });
 
@@ -99,42 +98,9 @@ pub async fn run() {
             // nockchain node
             nockchain_node::node_start_master,
             nockchain_node::node_stop_master,
+            nockchain_node::node_start_mining,
+            nockchain_node::node_stop_mining,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
-}
-
-async fn check_update(app_handle: &AppHandle) {
-    let window = match app_handle.get_webview_window("main") {
-        Some(w) => w,
-        None => {
-            warn!("Update checker: could not get main window");
-            return;
-        }
-    };
-    let updater = match app_handle.updater() {
-        Ok(u) => u,
-        Err(e) => {
-            error!("Update checker: error getting updater: {:?}", e);
-            return;
-        }
-    };
-    let check_result = updater.check().await;
-    match check_result {
-        Ok(Some(update)) => {
-            let _ = window.emit("update", updater::UpdateInfo::new(
-                true,
-                update.version,
-            ));
-        },
-        Ok(None) => {
-            let _ = window.emit("update", updater::UpdateInfo::new(
-                false,
-                "".to_string(),
-            ));
-        },
-        Err(e) => {
-            warn!("Update checker: error during update check: {:?}", e);
-        }
-    }
 }

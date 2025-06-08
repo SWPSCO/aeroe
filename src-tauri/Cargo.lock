@@ -56,6 +56,7 @@ dependencies = [
  "nockchain-wallet-lib",
  "nockvm",
  "nockvm_macros",
+ "num_cpus",
  "rand 0.9.1",
  "rand_core 0.9.3",
  "reqwest 0.11.27",
