@@ -5,19 +5,18 @@ use tokio::sync::oneshot;
 pub enum NockchainRequest {
     StartMaster,
     StopMaster,
-    // StartWorker,
-    // StopWorker,
-    // GetMasterStatus,
-    // GetNumWorkers,
+    SetWorkers(u64),
+    GetStatus,
 }
 
 #[derive(Debug)]
 pub enum NockchainResponse {
     Success,
-    // NoChange,
     Error(String),
-    // MasterStatus(bool),
-    // NumWorkers(u64),
+    Status {
+        master_running: bool,
+        num_workers: u64,
+    },
 }
 
 pub struct NockchainCommand {
@@ -45,10 +44,7 @@ impl NockchainNode {
         match res {
             Ok(res) => match res {
                 NockchainResponse::Success => Ok(()),
-                // NockchainResponse::NoChange => Ok(()),
-                NockchainResponse::Error(e) => Err(e),
-                // NockchainResponse::MasterStatus(status) => Err("invalid response".to_string()),
-                // NockchainResponse::NumWorkers(num_workers) => Err("invalid response".to_string()),
+                _ => Err("invalid response".to_string()),
             },
             Err(e) => Err(e.to_string()),
         }
@@ -64,10 +60,40 @@ impl NockchainNode {
         match res {
             Ok(res) => match res {
                 NockchainResponse::Success => Ok(()),
-                // NockchainResponse::NoChange => Ok(()),
-                NockchainResponse::Error(e) => Err(e),
-                // NockchainResponse::MasterStatus(status) => Err("invalid response".to_string()),
-                // NockchainResponse::NumWorkers(num_workers) => Err("invalid response".to_string()),
+                _ => Err("invalid response".to_string()),
+            },
+            Err(e) => Err(e.to_string()),
+        }
+    }
+    pub async fn set_workers(&mut self, num_workers: u64) -> Result<(), String> {
+        let (tx, rx) = oneshot::channel();
+        self.command_tx.send(NockchainCommand {
+            command: NockchainRequest::SetWorkers(num_workers),
+            response: tx,
+        }).await.map_err(|e| e.to_string())?;
+
+        let res = rx.await.map_err(|e| e.to_string())?;
+        match res {
+            Ok(res) => match res {
+                NockchainResponse::Success => Ok(()),
+                _ => Err("invalid response".to_string()),
+            },
+            Err(e) => Err(e.to_string()),
+        }
+    }
+
+    pub async fn get_status(&mut self) -> Result<(bool, u64), String> {
+        let (tx, rx) = oneshot::channel();
+        self.command_tx.send(NockchainCommand {
+            command: NockchainRequest::GetStatus,
+            response: tx,
+        }).await.map_err(|e| e.to_string())?;
+
+        let res = rx.await.map_err(|e| e.to_string())?;
+        match res {
+            Ok(res) => match res {
+                NockchainResponse::Status { master_running, num_workers } => Ok((master_running, num_workers)),
+                _ => Err("invalid response".to_string()),
             },
             Err(e) => Err(e.to_string()),
         }

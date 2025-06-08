@@ -4,10 +4,9 @@ mod wallet_app;
 mod watcher;
 mod keycrypt;
 mod prover;
+mod services;
 
-use std::panic::AssertUnwindSafe;
 use tokio::sync::Mutex;
-use prover::Prover;
 
 use tauri::{Emitter, Manager, AppHandle};
 
@@ -18,12 +17,8 @@ use crate::keycrypt::Keycrypt;
 use crate::commands::*;
 
 use std::time::Duration;
-use futures::FutureExt;
-use tracing::{error, warn, info};
+use tracing::{error, warn};
 use crate::commands::terms::TermsState;
-use crate::wallet_app::WalletApp;
-
-use nockapp::kernel::boot;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub async fn run() {
@@ -51,11 +46,11 @@ pub async fn run() {
 
             // --- Wallet Service ---
             let (wallet_tx, wallet_rx) = tokio::sync::mpsc::channel::<manager::WalletCommand>(128);
-            spawn_wallet_service(wallet_rx, wallet_dir.clone());
+            services::spawn_wallet_service(wallet_rx, wallet_dir.clone());
 
             // --- Nockchain Service ---
             let (nockchain_tx, nockchain_rx) = tokio::sync::mpsc::channel::<manager::NockchainCommand>(128);
-            spawn_nockchain_service(nockchain_rx, nockchain_dir.clone());
+            services::spawn_nockchain_service(nockchain_rx, nockchain_dir.clone());
             
             // --- Application State Management ---
             app.manage(Mutex::new(TermsState::new(&app.handle())));
@@ -68,6 +63,16 @@ pub async fn run() {
                 let watcher = Watcher::new(watcher_dir, wallet_dir);
                 if let Err(e) = watcher.start().await {
                     error!("Watcher service failed to start: {}", e);
+                }
+            });
+
+            // --- Start Master Node ---
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let nockchain_node = app_handle.state::<Mutex<manager::NockchainNode>>();
+                let mut nockchain_node = nockchain_node.lock().await;
+                if let Err(e) = nockchain_node.start_master().await {
+                    error!("Failed to start master node: {}", e);
                 }
             });
 
@@ -132,92 +137,4 @@ async fn check_update(app_handle: &AppHandle) {
             warn!("Update checker: error during update check: {:?}", e);
         }
     }
-}
-
-fn spawn_nockchain_service(mut _nockchain_rx: tokio::sync::mpsc::Receiver<manager::NockchainCommand>, nockchain_dir: std::path::PathBuf) {
-    std::thread::spawn(move || {
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-
-        runtime.block_on(async move {
-            // inner
-            std::thread::spawn(move || {
-                let runtime = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap();
-                runtime.block_on(async move {
-                    let nc = Prover::new("master".to_string(), nockchain_dir.clone());
-                    let res = nc.start().await;
-                    if let Err(e) = res {
-                        error!("nockchain failed to start: {:?}", e);
-                    }
-                });
-            });
-        })
-
-        /*
-        runtime.block_on(async move {
-            info!("[Nockchain Service] Started on a dedicated OS thread");
-            while let Some(cmd) = nockchain_rx.recv().await {
-                let command_name = format!("{:?}", cmd.command);
-                info!("[Nockchain Service] Received command: {}", command_name);
-                match cmd.command {
-                    manager::NockchainRequest::StartMaster => {
-                        let _ = cmd.response.send(Ok(manager::NockchainResponse::Success));
-                    }
-                    manager::NockchainRequest::StopMaster => {
-                        let _ = cmd.response.send(Ok(manager::NockchainResponse::Success));
-                    }
-                }
-            }
-        });
-        */
-    });
-}
-
-fn spawn_wallet_service(mut wallet_rx: tokio::sync::mpsc::Receiver<manager::WalletCommand>, wallet_dir: std::path::PathBuf) {
-    std::thread::spawn(move || {
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-
-        runtime.block_on(async move {
-            info!("[Wallet Service] Started on a dedicated OS thread");
-            while let Some(cmd) = wallet_rx.recv().await {
-                let command_name = format!("{:?}", cmd.command);
-                info!("[Wallet Service] Received command: {}", command_name);
-
-                let future = AssertUnwindSafe(WalletApp::run(cmd.command, wallet_dir.clone()));
-                
-                match future.catch_unwind().await {
-                    Ok(run_result) => {
-                        // Task completed successfully (or with a normal error)
-                        if cmd.response.send(run_result).is_err() {
-                            warn!("[Wallet Service] Command {}: Receiver dropped.", command_name);
-                        }
-                    },
-                    Err(panic_payload) => {
-                        // Task panicked
-                        let panic_message = if let Some(s) = panic_payload.downcast_ref::<&'static str>() {
-                            s.to_string()
-                        } else if let Some(s) = panic_payload.downcast_ref::<String>() {
-                            s.clone()
-                        } else {
-                            "Unknown panic reason".to_string()
-                        };
-
-                        error!("[Wallet Service] Command {} panicked: {}", command_name, &panic_message);
-                        
-                        // Inform the caller about the panic
-                        let _ = cmd.response.send(Err(format!("Command panicked: {}", panic_message)));
-                    }
-                }
-            }
-            info!("[Wallet Service] Channel closed. Shutting down.");
-        });
-    });
 }
