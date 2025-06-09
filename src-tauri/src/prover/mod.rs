@@ -1,6 +1,7 @@
 mod miner;
 mod network;
 mod config;
+mod status;
 
 use clap::Parser;
 
@@ -15,21 +16,25 @@ use nockapp::wire::{SystemWire, Wire};
 
 use nockchain::driver_init;
 
+use crate::manager::NockchainStatus;
+
 use nockvm::noun::{D, T};
 use nockvm_macros::tas;
 
-use kernels::dumb::KERNEL;
+// use kernels::dumb::KERNEL;
+static KERNEL: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/dumb.jam"));
 
 use zkvm_jetpack::hot::produce_prover_hot_state;
 
 pub struct Prover {
     name: String,
     nockchain_dir: PathBuf,
+    status_tx: tokio::sync::mpsc::Sender<NockchainStatus>,
 }
 
 impl Prover {
-    pub fn new(name: String, nockchain_dir: PathBuf) -> Self {
-        Self { name, nockchain_dir }
+    pub fn new(name: String, nockchain_dir: PathBuf, status_tx: tokio::sync::mpsc::Sender<NockchainStatus>) -> Self {
+        Self { name, nockchain_dir, status_tx }
     }
 
     pub async fn start(&mut self) -> Result<(), String> {
@@ -68,6 +73,9 @@ impl Prover {
 
         // timer_driver
         nockapp.add_io_driver(self.timer()).await;
+
+        // status_driver
+        nockapp.add_io_driver(status::status_driver(self.status_tx.clone())).await;
 
         // exit_driver
         nockapp.add_io_driver(nockapp::exit_driver()).await;

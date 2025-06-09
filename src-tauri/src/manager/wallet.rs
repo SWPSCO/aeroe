@@ -5,6 +5,8 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 use std::path::PathBuf;
 
+use crate::manager::NockchainStatus;
+
 pub struct WalletCommand {
     pub command: Commands,
     pub response: oneshot::Sender<Result<Vec<NounSlab>, String>>,
@@ -15,10 +17,9 @@ pub struct Wallet {
     wallet_dir: PathBuf,
     command_tx: Sender<WalletCommand>,
     wallet_name: Option<String>,
-    //nockchain_rx: Receiver<NockchainEvent>,
     master_pubkey: Option<String>,
     balance: Option<u64>,
-    latest_block_id: Option<u64>, // not implemented yet
+    latest_block_id: Option<u32>,
 }
 
 impl Wallet {
@@ -48,8 +49,30 @@ impl Wallet {
         self.balance = Some(balance);
         Ok(())
     }
+    pub async fn update(&mut self, option_status: Option<NockchainStatus>) -> Result<(), String> {
+        let Some(status) = option_status else {
+            return Err("cannot update wallet state, status is none".to_string());
+        };
+
+        match self.latest_block_id {
+            Some(latest_block) => {
+                if latest_block == status {
+                    return Ok(());
+                }
+            },
+            None => {}
+        }
+
+        tracing::info!("current block id: {:?}", self.latest_block_id);
+        tracing::info!("new block id: {:?}", status);
+
+        // do sync
+        self.balance = Some(self.peek_balance().await?);
+        // update history
+        self.latest_block_id = Some(status);
+        Ok(())
+    }
     pub async fn get_balance(&self) -> Result<u64, String> {
-        // TODO: check latest block id and if it's different from the one we have, update the balance
         let Some(balance) = self.balance else {
             return Err("balance is not set".to_string());
         };
@@ -122,13 +145,6 @@ impl Wallet {
         let _ = self.send_command(Commands::GenMasterPrivkey { seedphrase }).await?;
         Ok(())
     }
-    /*  
-    // we dont use this so disabled for now
-    pub async fn gen_master_pubkey(&self, master_privkey: String) -> Result<(), String> {
-        let _ = self.send_command(Commands::GenMasterPubkey { master_privkey }).await?;
-        Ok(())
-    }
-    */
     //
     // Helpers
     //

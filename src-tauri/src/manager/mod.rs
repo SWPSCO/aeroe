@@ -3,3 +3,5 @@ pub mod wallet;
 
 pub use nockchain_node::*;
 pub use wallet::*;
+
+pub type NockchainStatus = u32;
