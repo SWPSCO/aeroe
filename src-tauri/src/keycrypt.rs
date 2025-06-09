@@ -149,12 +149,6 @@ impl Keycrypt {
 
         Ok(())
     }
-
-    /// Wipes (clears) the in‐memory plaintext data.
-    fn wipe(&mut self) {
-        self.data.clear();
-    }
-
     /// Reads the Base64‐encoded ciphertext from `self.enc`, decrypts it using `self.password`,
     /// and loads the resulting plaintext (split on `\n`) into `self.data`.
     fn decrypt(&mut self) -> Result<(), String> {

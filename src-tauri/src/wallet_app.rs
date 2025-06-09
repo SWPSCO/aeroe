@@ -19,6 +19,7 @@ impl WalletApp {
     pub async fn run(
         command: Commands,
         data_dir: std::path::PathBuf,
+        master_socket: std::path::PathBuf,
     ) -> Result<Vec<NounSlab>, String> {
         let requires_sync = match command {
             // Commands that DON'T need sync
@@ -173,10 +174,7 @@ impl WalletApp {
 
         {
             if requires_sync {
-                // let socket_path = nockchain_dir.join("nockchain.sock");
-                let socket_path = std::path::PathBuf::from(
-                    "/Users/chuah/SWPS/nockchain_zorp/miner-node/nockchain.sock",
-                );
+                let socket_path = master_socket.clone();
                 match UnixStream::connect(&socket_path).await {
                     Ok(stream) => {
                         info!("Connected to nockchain NPC socket at {:?}", socket_path);

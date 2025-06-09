@@ -48,7 +48,11 @@ pub async fn run() {
 
             // --- Wallet Service ---
             let (wallet_tx, wallet_rx) = tokio::sync::mpsc::channel::<manager::WalletCommand>(128);
-            services::spawn_wallet_service(wallet_rx, wallet_dir.clone());
+            services::spawn_wallet_service(
+                wallet_rx,
+                wallet_dir.clone(),
+                nockchain_dir.clone().join("npc/master.sock"),
+            );
 
             // --- Nockchain Service ---
             let (nockchain_tx, nockchain_rx) = tokio::sync::mpsc::channel::<manager::NockchainCommand>(128);

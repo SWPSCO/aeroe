@@ -12,7 +12,6 @@ pub enum NockchainRequest {
 #[derive(Debug)]
 pub enum NockchainResponse {
     Success,
-    Error(String),
     Status {
         master_running: bool,
         num_workers: u64,

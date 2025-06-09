@@ -1,6 +1,7 @@
 use crate::wallet_app::WalletApp;
 use crate::prover::Prover;
 use std::panic::AssertUnwindSafe;
+use std::path::PathBuf;
 use futures::FutureExt;
 use crate::manager::{WalletCommand, NockchainResponse, NockchainRequest, NockchainCommand, NockchainStatus};
 use tracing::{ info, warn, error };
@@ -10,7 +11,7 @@ enum ProverCommand {
     Shutdown,
 }
 
-pub fn spawn_wallet_service(mut wallet_rx: tokio::sync::mpsc::Receiver<WalletCommand>, wallet_dir: std::path::PathBuf) {
+pub fn spawn_wallet_service(mut wallet_rx: tokio::sync::mpsc::Receiver<WalletCommand>, wallet_dir: PathBuf, master_socket: PathBuf) {
     std::thread::spawn(move || {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -23,7 +24,7 @@ pub fn spawn_wallet_service(mut wallet_rx: tokio::sync::mpsc::Receiver<WalletCom
                 let command_name = format!("{:?}", cmd.command);
                 info!("[Wallet Service] Received command: {}", command_name);
 
-                let future = AssertUnwindSafe(WalletApp::run(cmd.command, wallet_dir.clone()));
+                let future = AssertUnwindSafe(WalletApp::run(cmd.command, wallet_dir.clone(), master_socket.clone()));
                 
                 match future.catch_unwind().await {
                     Ok(run_result) => {
@@ -57,7 +58,7 @@ pub fn spawn_wallet_service(mut wallet_rx: tokio::sync::mpsc::Receiver<WalletCom
 pub fn spawn_nockchain_service(
     mut nockchain_rx: tokio::sync::mpsc::Receiver<NockchainCommand>,
     status_tx: tokio::sync::mpsc::Sender<NockchainStatus>,
-    nockchain_dir: std::path::PathBuf,
+    nockchain_dir: PathBuf,
 ) {
     std::thread::spawn(move || {
         let runtime = tokio::runtime::Builder::new_current_thread()
@@ -147,7 +148,7 @@ pub fn spawn_nockchain_service(
 
 async fn start_prover(
     id: String,
-    nockchain_dir: std::path::PathBuf,
+    nockchain_dir: PathBuf,
     provers: &mut std::collections::HashMap<String, tokio::sync::mpsc::Sender<ProverCommand>>,
     status_tx: tokio::sync::mpsc::Sender<NockchainStatus>,
     death_tx: tokio::sync::mpsc::Sender<String>,
