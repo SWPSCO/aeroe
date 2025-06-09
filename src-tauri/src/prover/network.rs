@@ -34,6 +34,7 @@ pub fn libp2p_driver(
         &initial_peer_multiaddrs,
         &force_peers,
         equix_builder,
+        config::CHAIN_INTERVAL,
         libp2p_init_tx,
     );
 

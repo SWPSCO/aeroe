@@ -10,7 +10,6 @@ use tokio::net::UnixListener;
 
 use nockapp::kernel::boot;
 use nockapp::npc_listener_driver;
-use nockapp::nockapp::driver::IODriverFn;
 use nockapp::noun::slab::NounSlab;
 use nockapp::wire::{SystemWire, Wire};
 
@@ -71,9 +70,6 @@ impl Prover {
         nockapp.npc_socket_path = Some(socket_path.clone());
         nockapp.add_io_driver(npc_listener_driver(self.npc_socket(socket_path)?)).await;
 
-        // timer_driver
-        nockapp.add_io_driver(self.timer()).await;
-
         // status_driver
         nockapp.add_io_driver(status::status_driver(self.status_tx.clone())).await;
 
@@ -97,13 +93,6 @@ impl Prover {
         .await.map_err(|e| e.to_string())?;
 
         Ok(nockapp)
-    }
-
-    fn timer(&self) -> IODriverFn {
-        let mut slab = NounSlab::new();
-        let noun = T(&mut slab, &[D(tas!(b"command")), D(tas!(b"timer")), D(0)]);
-        slab.set_root(noun);
-        nockapp::timer_driver(config::CHAIN_INTERVAL_SECS, slab)
     }
 
     fn realnet_no_btc(&self) -> NounSlab {
