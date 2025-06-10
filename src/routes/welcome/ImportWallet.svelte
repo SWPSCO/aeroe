@@ -24,9 +24,9 @@
 			return;
 		}
 
-		const createResult = await wallet.create(walletName, trimmedPhrase);
+		const createResult = await wallet.create(walletName.trim(), trimmedPhrase);
 		if (createResult.success) {
-			const loadResult = await wallet.load(walletName);
+			const loadResult = await wallet.load(walletName.trim());
 			if (loadResult.success) {
 				goto('/wallet');
 			} else {

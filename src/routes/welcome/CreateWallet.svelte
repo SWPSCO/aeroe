@@ -21,9 +21,9 @@
 	const createAndLoadWallet = async () => {
 		loading = true;
 		error = null;
-		const createResult = await wallet.create(walletName, phrase);
+		const createResult = await wallet.create(walletName.trim(), phrase);
 		if (createResult.success) {
-			const loadResult = await wallet.load(walletName);
+			const loadResult = await wallet.load(walletName.trim());
 			if (loadResult.success) {
 				goto('/wallet');
 			} else {

@@ -11,19 +11,19 @@
 
 	const createAndLoadVault = async () => {
 		error = null;
-		if (password !== confirmPassword) {
+		if (password.trim() !== confirmPassword.trim()) {
 			error = 'Passwords do not match.';
 			return;
 		}
-		if (password.length < 8) {
+		if (password.trim().length < 8) {
 			error = 'Password must be at least 8 characters long.';
 			return;
 		}
 
 		loading = true;
-		const createResult = await vault.create(password);
+		const createResult = await vault.create(password.trim());
 		if (createResult.success) {
-			const loadResult = await vault.load(password);
+			const loadResult = await vault.load(password.trim());
 			if (loadResult.success) {
 				dispatch('created');
 			} else {
@@ -68,7 +68,7 @@
 			<button
 				class="bg-dark text-white py-4 px-8 disabled:opacity-50"
 				onclick={createAndLoadVault}
-				disabled={loading || password.length < 8 || password !== confirmPassword}
+				disabled={loading || password.trim().length < 8 || password.trim() !== confirmPassword.trim()}
 			>
 				Create Vault
 			</button>

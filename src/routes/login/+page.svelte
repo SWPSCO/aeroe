@@ -10,7 +10,7 @@
 		error = null;
 		loading = true;
 
-		const result = await vault.load(password);
+		const result = await vault.load(password.trim());
 		if (result.success) {
 			goto('/wallet');
 		} else {
