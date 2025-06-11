@@ -1,8 +1,8 @@
-<script>
+<script lang="ts">
 	import '../../app.css';
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
-    import { status, get } from '$lib/scripts/wallet-commands';
+    import { aeroe, wallet } from '$lib/scripts/commands';
     import { walletLoaded, walletBalance, walletMasterPubkey } from '$lib/scripts/stores';
 
 	import MainArea from '$lib/components/MainArea.svelte';
@@ -12,48 +12,88 @@
 	import Footer from '$lib/components/Footer.svelte';
 
 	let { children } = $props();
+	let retryCount = 0;
+	const MAX_RETRIES = 5;
 
-	const checkWalletReady = async () => {
-		const res = await status.isReady();
-		if (!res.success) {
-			setTimeout(checkWalletReady, 1000);
-		} else {
-			if (res.data) {
-				await checkSetupComplete();
-			} else {
-				setTimeout(checkWalletReady, 1000);
+	const checkWalletStatus = async () => {
+		try {
+			const statusRes = await aeroe.status();
+			if (!statusRes.success) {
+				if (retryCount < MAX_RETRIES) {
+					retryCount++;
+					setTimeout(checkWalletStatus, 2000);
+				} else {
+					console.error('Failed to get aeroe status after retries:', statusRes.error);
+				}
+				return;
 			}
-		}
-	}
 
-	const checkSetupComplete = async () => {
-		const res = await status.isSetupComplete();
-		if (!res.success) {
-			setTimeout(checkSetupComplete, 1000);
-		} else {
+			const status = statusRes.data;
+			
+			if (!status.vaultExists) {
+				goto('/'); // Go to landing page to start the whole flow.
+				return;
+			}
+			
+			if (!status.vaultLoaded) {
+				goto('/login'); // If vault exists but isn't loaded, prompt for password.
+				return;
+			}
+
+			if (status.wallets.length === 0) {
+				goto('/welcome'); // No wallets created yet.
+				return;
+			}
+
+			// If we reach here, the vault is loaded and there's at least one wallet.
 			walletLoaded.set(true);
-			if (res.data) {
-				try {
-					const balance = await get.balance();
-					walletBalance.set(balance.data);
-				} catch (error) {
-					walletBalance.set(null);
-				}
-				try {
-					const masterPubkey = await get.masterPubkey();
-					walletMasterPubkey.set(masterPubkey.data);
-				} catch (error) {
-					walletMasterPubkey.set('errored');
-				}
-				goto('/wallet');
+
+			if (status.activeWallet) {
+				await loadWalletData(status.activeWallet);
 			} else {
-				goto('/welcome');
+                // If there's no active wallet, this layout shouldn't be active.
+                // Or we should show a wallet selection screen.
+                // For now, let's assume the router directs away from here if no active_wallet.
+				console.log("No active wallet is set.");
+			}
+
+		} catch (error) {
+			console.error('Error checking wallet status:', error);
+			if (retryCount < MAX_RETRIES) {
+				retryCount++;
+				setTimeout(checkWalletStatus, 2000);
 			}
 		}
-	}
+	};
+
+	const loadWalletData = async (walletName: string) => {
+		try {
+			const balanceRes = await wallet.balance(walletName);
+			if (balanceRes.success) {
+				walletBalance.set(balanceRes.data);
+			} else {
+				console.warn('Failed to load wallet balance:', balanceRes.error);
+			}
+		} catch (error) {
+			console.warn('Error loading wallet balance:', error);
+		}
+
+		try {
+			const pubkeyRes = await wallet.masterPubkey(walletName);
+			if (pubkeyRes.success) {
+				walletMasterPubkey.set(pubkeyRes.data);
+			} else {
+				console.warn('Failed to load master pubkey:', pubkeyRes.error);
+				walletMasterPubkey.set('error');
+			}
+		} catch (error) {
+			console.warn('Error loading master pubkey:', error);
+			walletMasterPubkey.set('error');
+		}
+	};
 
     onMount(async () => {
-		await checkWalletReady();
+		await checkWalletStatus();
     });
 
 </script>

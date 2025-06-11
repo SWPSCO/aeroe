@@ -1,93 +1,74 @@
-use crate::manager;
 use tokio::sync::Mutex;
+use tauri::State;
 
-//
-// status commands
-//
+use crate::keycrypt::Keycrypt;
+use crate::manager;
+
 #[tauri::command]
-pub async fn is_ready(
-    command_tx: tauri::State<'_, Mutex<manager::Wallet>>,
-) -> Result<bool, String> {
-    let wallet_lock = command_tx.lock().await;
-    Ok(wallet_lock.is_initialized())
+pub async fn vault_create(state: State<'_, Mutex<Keycrypt>>, password: String) -> Result<(), String> {
+    let mut keycrypt = state.lock().await;
+    keycrypt.create(password)
 }
 
 #[tauri::command]
-pub async fn is_setup_complete(
-    command_tx: tauri::State<'_, Mutex<manager::Wallet>>,
-) -> Result<bool, String> {
-    let wallet_lock = command_tx.lock().await;
-    Ok(wallet_lock.is_setup_complete())
-}
-
-//
-// get from memory
-//
-#[tauri::command]
-pub async fn get_master_pubkey(
-    command_tx: tauri::State<'_, Mutex<manager::Wallet>>,
-) -> Result<String, String> {
-    let wallet_lock = command_tx.lock().await;
-    Ok(wallet_lock.get_master_pubkey())
+pub async fn vault_load(state: State<'_, Mutex<Keycrypt>>, password: String) -> Result<(), String> {
+    let mut keycrypt = state.lock().await;
+    keycrypt.load(password)
 }
 
 #[tauri::command]
-pub async fn get_balance(
-    command_tx: tauri::State<'_, Mutex<manager::Wallet>>,
-) -> Result<u64, String> {
-    let wallet_lock = command_tx.lock().await;
-    let balance = wallet_lock.get_balance()?;
-    Ok(balance)
+pub async fn wallet_create(state: State<'_, Mutex<Keycrypt>>, wallet_name: String, seedphrase: Vec<String>) -> Result<(), String> {
+    let mut keycrypt = state.lock().await;
+    keycrypt.add_wallet(wallet_name, seedphrase.join(" "))
 }
-
-//
-// sets memory
-//
-#[tauri::command]
-pub async fn initialize(
-    command_tx: tauri::State<'_, Mutex<manager::Wallet>>,
-) -> Result<(), String> {
-    let mut wallet_lock = command_tx.lock().await;
-    wallet_lock.initialize().await
-}
-
-//
-// pokes
-//
 #[tauri::command]
 pub async fn keygen(
-    command_tx: tauri::State<'_, Mutex<manager::Wallet>>,
-) -> Result<(), String> {
-    let wallet_lock = command_tx.lock().await;
-    wallet_lock.keygen().await
-}
-
-#[tauri::command]
-pub async fn gen_master_privkey(
-    command_tx: tauri::State<'_, Mutex<manager::Wallet>>,
-    seedphrase: Vec<String>,
-) -> Result<(), String> {
-    let wallet_lock = command_tx.lock().await;
-    let seedphrase = seedphrase.join(" ");
-    wallet_lock.gen_master_privkey(seedphrase).await
-}
-
-#[tauri::command]
-pub async fn gen_master_pubkey(
-    command_tx: tauri::State<'_, Mutex<manager::Wallet>>,
-    master_privkey: String,
-) -> Result<(), String> {
-    let wallet_lock = command_tx.lock().await;
-    wallet_lock.gen_master_pubkey(master_privkey).await
-}
-
-//
-// peeks
-//
-#[tauri::command]
-pub async fn peek_seedphrase(
-    command_tx: tauri::State<'_, Mutex<manager::Wallet>>,
+    wallet: tauri::State<'_, Mutex<manager::Wallet>>,
 ) -> Result<Vec<String>, String> {
-    let wallet_lock = command_tx.lock().await;
-    wallet_lock.peek_seedphrase().await
+    let wallet_lock = wallet.lock().await;
+    wallet_lock.keygen().await?;
+    let seedphrase = wallet_lock.peek_seedphrase().await?;
+    wallet_lock.clear_state().await?;
+    Ok(seedphrase)
+}
+
+#[tauri::command]
+pub async fn wallet_load(
+    wallet: tauri::State<'_, Mutex<manager::Wallet>>,
+    vault: tauri::State<'_, Mutex<Keycrypt>>,
+    wallet_name: String,
+) -> Result<(), String> {
+    let vault_lock = vault.lock().await;
+    let seedphrase = vault_lock.get_seedphrase(wallet_name.clone())?;
+    tracing::debug!("seedphrase: {:?}", seedphrase);
+    let mut wallet_lock = wallet.lock().await;
+    wallet_lock.gen_master_privkey(seedphrase).await?;
+    wallet_lock.load(wallet_name).await?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn master_pubkey(
+    wallet: tauri::State<'_, Mutex<manager::Wallet>>,
+    wallet_name: String,
+) -> Result<String, String> {
+    let wallet_lock = wallet.lock().await;
+    let loaded_wallet_name = wallet_lock.get_active_wallet();
+    if loaded_wallet_name != Some(wallet_name) {
+        return Err("wallet name mismatch".to_string());
+    }
+    wallet_lock.get_master_pubkey().await
+}
+
+#[tauri::command]
+pub async fn balance(
+    wallet: tauri::State<'_, Mutex<manager::Wallet>>,
+    wallet_name: String,
+) -> Result<u64, String> {
+    let wallet_lock = wallet.lock().await;
+    let loaded_wallet_name = wallet_lock.get_active_wallet();
+    if loaded_wallet_name != Some(wallet_name) {
+        return Err("wallet name mismatch".to_string());
+    }
+    wallet_lock.get_balance().await
 }

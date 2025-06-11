@@ -2,7 +2,7 @@
     import { getVersion } from '@tauri-apps/api/app';
     import { onMount } from 'svelte';
     import { listen } from '@tauri-apps/api/event';
-    import { updater } from '$lib/scripts/wallet-commands';
+    import { updater } from '$lib/scripts/commands';
 
     let width = $state(0)
     let collapsed = $derived(width < 800)

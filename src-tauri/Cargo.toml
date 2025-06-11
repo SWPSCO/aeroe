@@ -23,20 +23,28 @@ tauri-plugin-shell = "2"
 
 # external
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1" }
 tokio = { version = "1.44.2", features = ["full"] }
-tracing = "0.1.41"
-tracing-subscriber = "0.3.19"
+tracing = { version = "0.1.41" }
+tracing-subscriber = { version = "0.3.19" }
 reqwest = { version = "0.11", features = ["json"] }
-async-channel = "1.5.1"
-async-oneshot = "0.5.0"
-dotenv = "0.15.0"
+async-channel = { version = "1.5.1" }
+async-oneshot = { version = "0.5.0" }
+dotenv = { version = "0.15.0" }
 clap = { version = "4.5.37", features = ["derive"] }
-base64 = "0.21"
-chrono = "0.4.41"
-bs58 = "0.5.1"
-libp2p = "0.55.0"
-equix = "0.2.3"
+base64 = { version = "0.21" }
+chrono = { version = "0.4.41" }
+bs58 = { version = "0.5.1" }
+# libp2p = { version = "0.55.0" }
+libp2p = { git = "https://github.com/libp2p/rust-libp2p.git", rev = "da0017ee887a868e231ed78c7de892779c17800d" }
+equix = { version = "0.2.3" }
+getrandom = { version = "0.2.15", features = ["std"] }
+libc = { version = "0.2.172" }
+argon2 = { version = "0.5.3" }
+chacha20poly1305 = { version = "0.10.1" }
+rand_core = { version = "0.9" }
+rand = { version = "0.9" }
+num_cpus = "1.16.0"
 
 # internal
 #libconfig = { path = "../../nockpool/libconfig" }
@@ -49,17 +57,15 @@ key-utils = { git = "https://github.com/stratum-mining/stratum.git", rev = "6a48
 roles_logic_sv2 = { git = "https://github.com/stratum-mining/stratum.git", rev = "6a4874d1302327e169cd894dc5a79f52d533dcc9", package = "roles_logic_sv2" }
 
 # nockchain
-# Using relative path to the submodule
-nockchain = { path = "../vendor/nockchain/crates/nockchain" }
-nockvm = { path = "../vendor/nockchain/crates/nockvm/rust/nockvm" }
-nockapp = { path = "../vendor/nockchain/crates/nockapp" }
-kernels = { path = "../vendor/nockchain/crates/kernels", features = ["wallet"] }
-zkvm-jetpack = { path = "../vendor/nockchain/crates/zkvm-jetpack" }
-getrandom = { version = "0.2.15", features = ["std"] }
-nockchain-wallet-lib = { path = "../vendor/nockchain/crates/nockchain-wallet-lib" }
-nockvm_macros = { path = "../vendor/nockchain/crates/nockvm/rust/nockvm_macros" }
-nockchain-bitcoin-sync = { path = "../vendor/nockchain/crates/nockchain-bitcoin-sync" }
-nockchain-libp2p-io = { path = "../vendor/nockchain/crates/nockchain-libp2p-io" }
+nockchain-wallet-lib = { git = "https://github.com/swpsco/nockchain-wallet-lib.git", rev = "3bac1c70038d1c2b40c84dac43277895a2beffc1" }
+nockchain = { git = "https://github.com/swpsco/nockchain.git", rev = "38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27", package = "nockchain" }
+nockvm = { git = "https://github.com/swpsco/nockchain.git", rev = "38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27", package = "nockvm" }
+nockapp = { git = "https://github.com/swpsco/nockchain.git", rev = "38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27", package = "nockapp" }
+zkvm-jetpack = { git = "https://github.com/swpsco/nockchain.git", rev = "38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27", package = "zkvm-jetpack" }
+nockvm_macros = { git = "https://github.com/swpsco/nockchain.git", rev = "38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27", package = "nockvm_macros" }
+nockchain-bitcoin-sync = { git = "https://github.com/swpsco/nockchain.git", rev = "38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27", package = "nockchain-bitcoin-sync" }
+nockchain-libp2p-io = { git = "https://github.com/swpsco/nockchain.git", rev = "38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27", package = "nockchain-libp2p-io" }
+futures = "0.3.31"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"

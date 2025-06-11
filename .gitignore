@@ -13,3 +13,7 @@ nockchain.sock
 .data.wallet
 .nockchain_identity
 .nockchain_identity.peerid
+.aider.chat.history.md
+.aider.input.history
+.aider.tags.cache.v4/
+vendor/

@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
     // import ContactIconButton from './ContactIconButton.svelte'
     import BigButton from './BigButton.svelte'
     import { walletBalance } from '$lib/scripts/stores'

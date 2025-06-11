@@ -1,18 +1,32 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
     import { onMount } from 'svelte';
-    import { terms } from '$lib/scripts/wallet-commands';
+    import { terms, aeroe } from '$lib/scripts/commands';
     import TermsOfUse from './TermsOfUse.svelte';
     import PrivacyPolicy from './PrivacyPolicy.svelte';
 
     let pageIsReady = $state(false);
     let termsOfUseAccepted = $state(false);
     let privacyPolicyAccepted = $state(false);
+    
     $effect(() => {
-        if (termsOfUseAccepted && privacyPolicyAccepted) {
-            goto("/wallet");
+        async function handleNavigation() {
+            if (termsOfUseAccepted && privacyPolicyAccepted) {
+                const statusResult = await aeroe.status();
+                if (statusResult.success) {
+                    if (statusResult.data.vaultExists) {
+                        goto("/login");
+                    } else {
+                        goto("/welcome");
+                    }
+                } else {
+                    error = `Failed to check vault status: ${JSON.stringify(statusResult.error)}`;
+                }
+            }
         }
+        handleNavigation();
     });
+
     let error: unknown | null = $state(null);
 
     const checkTermsAccepted = async () => {
@@ -45,9 +59,7 @@
     onMount(async () => {
         await checkTermsAccepted();
         await checkPrivacyAccepted();
-        if (termsOfUseAccepted && privacyPolicyAccepted) {
-            goto("/wallet");
-        } else {
+        if (!termsOfUseAccepted || !privacyPolicyAccepted) {
             pageIsReady = true;
         }
     });
@@ -56,7 +68,7 @@
 {#if error}
     <div class="m-8">
         <div class="font-title text-xl bg-red-500 text-white p-8">
-            Error: {error}
+            Error: {JSON.stringify(error)}
         </div>
     </div>
 {/if}

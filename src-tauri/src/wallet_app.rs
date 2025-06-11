@@ -5,14 +5,13 @@ use tracing::{error, info};
 
 use nockchain_wallet_lib::{Commands, KeyType, Wallet};
 
-use kernels::wallet::KERNEL;
-
 use zkvm_jetpack::hot::produce_prover_hot_state;
 
 use nockapp::kernel::boot::{self, Cli};
 use nockapp::nockapp::NockApp;
 use nockapp::noun::slab::NounSlab;
 use nockapp::{exit_driver, file_driver, markdown_driver, one_punch_driver};
+static KERNEL: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/wal.jam"));
 
 pub struct WalletApp {}
 
@@ -20,10 +19,12 @@ impl WalletApp {
     pub async fn run(
         command: Commands,
         data_dir: std::path::PathBuf,
+        master_socket: std::path::PathBuf,
     ) -> Result<Vec<NounSlab>, String> {
         let requires_sync = match command {
             // Commands that DON'T need sync
             Commands::PeekBalance
+            | Commands::UpdateState
             | Commands::PeekSeedphrase
             | Commands::PeekMasterPubkey
             | Commands::PeekState
@@ -47,6 +48,8 @@ impl WalletApp {
             // All other commands DO need sync
             _ => true,
         };
+
+        let requires_nockchain = command == Commands::UpdateState;
 
         let poke = match command {
             // Peeks temporary location
@@ -76,6 +79,7 @@ impl WalletApp {
             }
 
             // Pokes start here
+            Commands::UpdateState => Wallet::update_state().map_err(|e| e.to_string())?,
             Commands::Keygen => {
                 let mut entropy = [0u8; 32];
                 let mut salt = [0u8; 16];
@@ -173,11 +177,8 @@ impl WalletApp {
             .await;
 
         {
-            if requires_sync {
-                // let socket_path = nockchain_dir.join("nockchain.sock");
-                let socket_path = std::path::PathBuf::from(
-                    "/Users/chuah/SWPS/nockchain_zorp/miner-node/nockchain.sock",
-                );
+            if requires_sync || requires_nockchain {
+                let socket_path = master_socket.clone();
                 match UnixStream::connect(&socket_path).await {
                     Ok(stream) => {
                         info!("Connected to nockchain NPC socket at {:?}", socket_path);

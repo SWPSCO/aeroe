@@ -14,9 +14,13 @@ use tracing::Level;
 async fn main() {
     let fmt_layer = fmt::layer().with_ansi(true).event_format(MinimalFormatter);
 
+    let filter = EnvFilter::builder()
+        .with_default_directive("debug".parse().unwrap())
+        .from_env_lossy();
+
     tracing_subscriber::registry()
         .with(fmt_layer)
-        .with(EnvFilter::new("debug"))
+        .with(filter)
         .init();
 
     aeroe_lib::run().await;

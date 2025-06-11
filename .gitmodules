@@ -1,3 +1,0 @@
-[submodule "vendor/nockchain"]
-	path = vendor/nockchain
-	url = https://github.com/swpsco/nockchain.git
