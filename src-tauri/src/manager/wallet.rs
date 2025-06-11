@@ -20,6 +20,7 @@ pub struct Wallet {
     master_pubkey: Option<String>,
     balance: Option<u64>,
     latest_block_id: Option<u32>,
+    last_sync: Option<std::time::Instant>,
 }
 
 impl Wallet {
@@ -32,6 +33,7 @@ impl Wallet {
             master_pubkey: None,
             balance: None,
             latest_block_id: None,
+            last_sync: None,
         }
     }
     pub async fn clear_state(&self) -> Result<(), String> {
@@ -45,6 +47,7 @@ impl Wallet {
         self.wallet_name = Some(wallet_name);
         let pubkey = self.peek_master_pubkey().await?;
         self.master_pubkey = Some(pubkey);
+        self.update_state().await?;
         let balance = self.peek_balance().await?;
         self.balance = Some(balance);
         Ok(())
@@ -66,10 +69,18 @@ impl Wallet {
         tracing::info!("current block id: {:?}", self.latest_block_id);
         tracing::info!("new block id: {:?}", status);
 
-        // do sync
+        self.latest_block_id = Some(status);
+
+        if let Some(last_sync) = self.last_sync {
+            // only sync if last sync was more than 20 seconds ago
+            if last_sync.elapsed() < std::time::Duration::from_secs(20) {
+                tracing::info!("last sync was less than 20 seconds ago, skipping sync");
+                return Ok(());
+            }
+        }
+        self.update_state().await?;
         self.balance = Some(self.peek_balance().await?);
         // update history
-        self.latest_block_id = Some(status);
         Ok(())
     }
     pub async fn get_balance(&self) -> Result<u64, String> {
@@ -88,6 +99,9 @@ impl Wallet {
     // peeks
     //
     pub async fn peek_seedphrase(&self) -> Result<Vec<String>, String> {
+        if self.wallet_name.is_none() {
+            return Err("wallet is not loaded".to_string());
+        }
         let result = self.send_command(Commands::PeekSeedphrase).await?;
         let phrase = Self::clean_peek_noun(result)?;
         let phrase_atom = phrase
@@ -110,6 +124,9 @@ impl Wallet {
         Ok(cleaned_words)
     }
     async fn peek_master_pubkey(&self) -> Result<String, String> {
+        if self.wallet_name.is_none() {
+            return Err("wallet is not loaded".to_string());
+        }
         let result = self.send_command(Commands::PeekMasterPubkey).await?;
         let pubkey = Self::clean_peek_noun(result)?;
         let pubkey_atom = pubkey
@@ -123,6 +140,9 @@ impl Wallet {
         Ok(actual_pubkey_str.replace("\u{0000}", ""))
     }
     async fn peek_balance(&self) -> Result<u64, String> {
+        if self.wallet_name.is_none() {
+            return Err("wallet is not loaded".to_string());
+        }
         let result = self.send_command(Commands::PeekBalance).await?;
         let noun = Self::clean_peek_noun(result)?;
         let atom = noun
@@ -143,6 +163,14 @@ impl Wallet {
     }
     pub async fn gen_master_privkey(&self, seedphrase: String) -> Result<(), String> {
         let _ = self.send_command(Commands::GenMasterPrivkey { seedphrase }).await?;
+        Ok(())
+    }
+    pub async fn update_state(&mut self) -> Result<(), String> {
+        if self.wallet_name.is_none() {
+            return Err("wallet is not loaded".to_string());
+        }
+        let _ = self.send_command(Commands::UpdateState).await?;
+        self.last_sync = Some(std::time::Instant::now());
         Ok(())
     }
     //

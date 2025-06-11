@@ -24,6 +24,7 @@ impl WalletApp {
         let requires_sync = match command {
             // Commands that DON'T need sync
             Commands::PeekBalance
+            | Commands::UpdateState
             | Commands::PeekSeedphrase
             | Commands::PeekMasterPubkey
             | Commands::PeekState
@@ -47,6 +48,8 @@ impl WalletApp {
             // All other commands DO need sync
             _ => true,
         };
+
+        let requires_nockchain = command == Commands::UpdateState;
 
         let poke = match command {
             // Peeks temporary location
@@ -76,6 +79,7 @@ impl WalletApp {
             }
 
             // Pokes start here
+            Commands::UpdateState => Wallet::update_state().map_err(|e| e.to_string())?,
             Commands::Keygen => {
                 let mut entropy = [0u8; 32];
                 let mut salt = [0u8; 16];
@@ -173,7 +177,7 @@ impl WalletApp {
             .await;
 
         {
-            if requires_sync {
+            if requires_sync || requires_nockchain {
                 let socket_path = master_socket.clone();
                 match UnixStream::connect(&socket_path).await {
                     Ok(stream) => {
