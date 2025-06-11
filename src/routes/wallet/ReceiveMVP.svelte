@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
     import { walletMasterPubkey } from '$lib/scripts/stores'
     
     let copyText = $state("copy")
