@@ -14,7 +14,7 @@
             if (termsOfUseAccepted && privacyPolicyAccepted) {
                 const statusResult = await aeroe.status();
                 if (statusResult.success) {
-                    if (statusResult.data.vault_exists) {
+                    if (statusResult.data.vaultExists) {
                         goto("/login");
                     } else {
                         goto("/welcome");

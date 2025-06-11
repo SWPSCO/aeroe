@@ -30,12 +30,12 @@
 
 			const status = statusRes.data;
 			
-			if (!status.vault_exists) {
+			if (!status.vaultExists) {
 				goto('/'); // Go to landing page to start the whole flow.
 				return;
 			}
 			
-			if (!status.vault_loaded) {
+			if (!status.vaultLoaded) {
 				goto('/login'); // If vault exists but isn't loaded, prompt for password.
 				return;
 			}
@@ -48,8 +48,8 @@
 			// If we reach here, the vault is loaded and there's at least one wallet.
 			walletLoaded.set(true);
 
-			if (status.active_wallet) {
-				await loadWalletData(status.active_wallet);
+			if (status.activeWallet) {
+				await loadWalletData(status.activeWallet);
 			} else {
                 // If there's no active wallet, this layout shouldn't be active.
                 // Or we should show a wallet selection screen.
