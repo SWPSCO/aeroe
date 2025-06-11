@@ -99,9 +99,6 @@ impl Wallet {
     // peeks
     //
     pub async fn peek_seedphrase(&self) -> Result<Vec<String>, String> {
-        if self.wallet_name.is_none() {
-            return Err("wallet is not loaded".to_string());
-        }
         let result = self.send_command(Commands::PeekSeedphrase).await?;
         let phrase = Self::clean_peek_noun(result)?;
         let phrase_atom = phrase
