@@ -43,8 +43,11 @@ pub async fn run() {
             let watcher_dir = data_dir.join("watcher");
             let keycrypt_dir = data_dir.join("vault");
 
-            // --- Nockchain Status Channel ---
-            let (status_tx, status_rx) = tokio::sync::mpsc::channel::<manager::NockchainStatus>(128);
+            // --- Nockchain Status Receiver ---
+            let (status_receiver_tx, status_receiver_rx) = tokio::sync::mpsc::channel::<manager::NockchainStatus>(128);
+
+            // --- Nockchain Status Caller ---
+            let (status_caller_tx, status_caller_rx) = tokio::sync::broadcast::channel::<manager::NockchainPeek>(128);
 
             // --- Wallet Service ---
             let (wallet_tx, wallet_rx) = tokio::sync::mpsc::channel::<manager::WalletCommand>(128);
@@ -56,7 +59,12 @@ pub async fn run() {
 
             // --- Nockchain Service ---
             let (nockchain_tx, nockchain_rx) = tokio::sync::mpsc::channel::<manager::NockchainCommand>(128);
-            services::spawn_nockchain_service(nockchain_rx, status_tx, nockchain_dir.clone());
+            services::spawn_nockchain_service(
+                nockchain_rx,
+                status_receiver_tx,
+                status_caller_rx,
+                nockchain_dir.clone(),
+            );
 
             
             // --- Application State Management ---
@@ -64,7 +72,8 @@ pub async fn run() {
             app.manage(Mutex::new(manager::Wallet::new(wallet_tx, wallet_dir.clone())));
             app.manage(Mutex::new(manager::NockchainNode::new(nockchain_tx)));
             app.manage(Mutex::new(Keycrypt::new(keycrypt_dir)));
-            app.manage(Mutex::new(status_rx));
+            app.manage(Mutex::new(status_receiver_rx));
+            app.manage(Mutex::new(status_caller_tx));
 
             // --- Watcher Service ---
             tauri::async_runtime::spawn(async move {
@@ -84,18 +93,35 @@ pub async fn run() {
                 }
             });
 
+            // --- Wallet State Updater ---
+            // receives status from nockchain node
             let status_app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                let status_rx = status_app_handle.state::<Mutex<tokio::sync::mpsc::Receiver<manager::NockchainStatus>>>();
+                let status_receiver_rx = status_app_handle.state::<Mutex<tokio::sync::mpsc::Receiver<manager::NockchainStatus>>>();
                 let wallet_app = status_app_handle.state::<Mutex<manager::Wallet>>();
-                let mut status_rx = status_rx.lock().await;
+                let mut status_receiver_rx = status_receiver_rx.lock().await;
                 loop {
-                    let status = status_rx.recv().await;
+                    let status = status_receiver_rx.recv().await;
                     let mut wallet_app = wallet_app.lock().await;
                     let res = wallet_app.update(status).await;
                     if let Err(e) = res {
                         error!("Failed to update wallet state: {}", e);
                     }
+                }
+            });
+
+            // --- Nockchain Status Caller ---
+            // calls nockchain node to get status
+            let status_app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let status_caller_tx = status_app_handle.state::<Mutex<tokio::sync::broadcast::Sender<manager::NockchainPeek>>>();
+                let status_caller_tx = status_caller_tx.lock().await;
+                loop {
+                    let status = status_caller_tx.send(manager::NockchainPeek::Height);
+                    if let Err(e) = status {
+                        error!("Failed to send status: {}", e);
+                    }
+                    tokio::time::sleep(Duration::from_secs(5)).await;
                 }
             });
 

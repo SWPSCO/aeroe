@@ -69,9 +69,7 @@ impl Wallet {
             None => {}
         }
 
-        tracing::info!("current block id: {:?}", self.block_height);
-        tracing::info!("new block id: {:?}", status);
-
+        tracing::info!("current block id: {:?}, new block id: {:?}", self.block_height, status);
         self.block_height = Some(status);
 
         if let Some(last_sync) = self.last_sync {

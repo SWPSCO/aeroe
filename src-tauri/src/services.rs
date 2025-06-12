@@ -3,7 +3,14 @@ use crate::prover::Prover;
 use std::panic::AssertUnwindSafe;
 use std::path::PathBuf;
 use futures::FutureExt;
-use crate::manager::{WalletCommand, NockchainResponse, NockchainRequest, NockchainCommand, NockchainStatus};
+use crate::manager::{
+    WalletCommand,
+    NockchainResponse,
+    NockchainRequest,
+    NockchainCommand,
+    NockchainStatus,
+    NockchainPeek,
+};
 use tracing::{ info, warn, error };
 
 #[derive(Clone, Debug)]
@@ -57,7 +64,8 @@ pub fn spawn_wallet_service(mut wallet_rx: tokio::sync::mpsc::Receiver<WalletCom
 
 pub fn spawn_nockchain_service(
     mut nockchain_rx: tokio::sync::mpsc::Receiver<NockchainCommand>,
-    status_tx: tokio::sync::mpsc::Sender<NockchainStatus>,
+    status_receiver_tx: tokio::sync::mpsc::Sender<NockchainStatus>,
+    status_caller_rx: tokio::sync::broadcast::Receiver<NockchainPeek>,
     nockchain_dir: PathBuf,
 ) {
     std::thread::spawn(move || {
@@ -72,7 +80,7 @@ pub fn spawn_nockchain_service(
             let mut provers: std::collections::HashMap<String, tokio::sync::mpsc::Sender<ProverCommand>> = std::collections::HashMap::new();
             let mut running_intent: std::collections::HashSet<String> = std::collections::HashSet::new();
             let (death_tx, mut death_rx) = tokio::sync::mpsc::channel::<String>(32);
-            let mut next_worker_id: u64 = 0;
+            // let mut next_worker_id: u64 = 0;
 
             loop {
                 tokio::select! {
@@ -84,7 +92,14 @@ pub fn spawn_nockchain_service(
                             NockchainRequest::StartMaster => {
                                 if !provers.contains_key("master") {
                                     running_intent.insert("master".to_string());
-                                    start_prover("master".to_string(), nockchain_dir.clone(), &mut provers, status_tx.clone(), death_tx.clone()).await;
+                                    start_prover(
+                                        "master".to_string(),
+                                        nockchain_dir.clone(),
+                                        &mut provers,
+                                        status_receiver_tx.clone(),
+                                        status_caller_rx.resubscribe(),
+                                        death_tx.clone(),
+                                    ).await;
                                 }
                                 let _ = cmd.response.send(Ok(NockchainResponse::Success));
                             },
@@ -95,7 +110,8 @@ pub fn spawn_nockchain_service(
                                 }
                                 let _ = cmd.response.send(Ok(NockchainResponse::Success));
                             },
-                            NockchainRequest::SetWorkers(num_workers) => {
+                            NockchainRequest::SetWorkers(_num_workers) => {
+                                /*
                                 let current_workers = provers.keys().filter(|k| k.starts_with("worker")).count() as u64;
 
                                 if num_workers > current_workers {
@@ -103,7 +119,7 @@ pub fn spawn_nockchain_service(
                                         let worker_id = format!("worker{}", next_worker_id);
                                         next_worker_id += 1;
                                         running_intent.insert(worker_id.clone());
-                                        start_prover(worker_id, nockchain_dir.clone(), &mut provers, status_tx.clone(), death_tx.clone()).await;
+                                        start_prover(worker_id, nockchain_dir.clone(), &mut provers, status_receiver_tx.clone(), death_tx.clone()).await;
                                     }
                                 } else if num_workers < current_workers {
                                     let workers_to_stop = provers.keys()
@@ -117,10 +133,12 @@ pub fn spawn_nockchain_service(
                                     }
                                 }
                                 let _ = cmd.response.send(Ok(NockchainResponse::Success));
+                                */
                             },
                             NockchainRequest::GetStatus => {
                                 let master_running = provers.contains_key("master");
-                                let num_workers = provers.keys().filter(|k| k.starts_with("worker")).count() as u64;
+                                // let num_workers = provers.keys().filter(|k| k.starts_with("worker")).count() as u64;
+                                let num_workers = 0;
                                 let _ = cmd.response.send(Ok(NockchainResponse::Status { master_running, num_workers }));
                             }
                         }
@@ -131,7 +149,14 @@ pub fn spawn_nockchain_service(
 
                         if running_intent.contains(&dead_id) {
                             warn!("[Nockchain Service] Prover '{}' crashed. Restarting...", dead_id);
-                            start_prover(dead_id, nockchain_dir.clone(), &mut provers, status_tx.clone(), death_tx.clone()).await;
+                            start_prover(
+                                dead_id,
+                                nockchain_dir.clone(),
+                                &mut provers,
+                                status_receiver_tx.clone(),
+                                status_caller_rx.resubscribe(),
+                                death_tx.clone(),
+                            ).await;
                         } else {
                             info!("[Nockchain Service] Prover '{}' was stopped intentionally.", dead_id);
                         }
@@ -150,7 +175,8 @@ async fn start_prover(
     id: String,
     nockchain_dir: PathBuf,
     provers: &mut std::collections::HashMap<String, tokio::sync::mpsc::Sender<ProverCommand>>,
-    status_tx: tokio::sync::mpsc::Sender<NockchainStatus>,
+    status_receiver_tx: tokio::sync::mpsc::Sender<NockchainStatus>,
+    status_caller_rx: tokio::sync::broadcast::Receiver<NockchainPeek>,
     death_tx: tokio::sync::mpsc::Sender<String>,
 ) {
     let (tx, mut rx) = tokio::sync::mpsc::channel(1);
@@ -166,7 +192,12 @@ async fn start_prover(
             let prover_id = id.clone();
             info!("[Prover {}] Starting...", prover_id);
 
-            let mut nc = Prover::new(prover_id.clone(), nockchain_dir, status_tx);
+            let mut nc = Prover::new(
+                prover_id.clone(),
+                nockchain_dir,
+                status_receiver_tx,
+                status_caller_rx,
+            );
             
             tokio::select! {
                 res = nc.start() => {
