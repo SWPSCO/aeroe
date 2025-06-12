@@ -9,6 +9,8 @@ use nockvm::noun::Noun;
 #[derive(Debug, Clone, PartialEq)]
 pub enum NockchainPeek {
     Height,
+    HeavySummary,
+    Transactions,
 }
 
 pub struct NockchainStatus {
@@ -25,7 +27,7 @@ impl NockchainStatus {
     }
     pub fn height(&self) -> Result<u32, String> {
         if self.command != NockchainPeek::Height {
-            return Err(format!("not a height command: {:?}", self.command));
+            return Err(format!("not a height command: {:?}", self.command()));
         }
         let Ok(atom) = self.noun.as_atom() else {
             return Err(format!("invalid noun, not an atom: {:?}", self.noun));

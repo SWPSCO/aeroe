@@ -16,12 +16,15 @@ pub fn status_driver(
         Box::pin(async move {
             loop {
                 let status = status_caller_rx.recv().await;
+                tracing::info!("status: {:?}", status);
                 let Ok(peek_command) = status else {
                     tracing::error!("failed to receive status");
                     continue;
                 };
                 let command = match peek_command {
                     NockchainPeek::Height => "height",
+                    NockchainPeek::HeavySummary => "heavy-summary",
+                    NockchainPeek::Transactions => "transactions",
                 };
                 let mut slab = NounSlab::new();
                 let Ok(peek) = handle.peek(make_slab(&mut slab, command)).await else {

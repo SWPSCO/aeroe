@@ -117,4 +117,8 @@ export const wallet = {
 export const node = {
     startMaster: async () => handleInvoke('node_start_master'),
     stopMaster: async () => handleInvoke('node_stop_master'),
+    /**
+     * @param {string} command
+     */
+    peek: async (command) => handleInvoke('node_peek', { command }),
 }

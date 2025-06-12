@@ -128,13 +128,15 @@ pub async fn run() {
             let status_app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 let status_caller_tx = status_app_handle.state::<Mutex<tokio::sync::broadcast::Sender<manager::NockchainPeek>>>();
-                let status_caller_tx = status_caller_tx.lock().await;
                 loop {
-                    let status = status_caller_tx.send(manager::NockchainPeek::Height);
-                    if let Err(e) = status {
-                        error!("Failed to send status: {}", e);
+                    {
+                        let status_caller_tx = status_caller_tx.lock().await;
+                        let status = status_caller_tx.send(manager::NockchainPeek::Height);
+                        if let Err(e) = status {
+                            error!("Failed to send status: {}", e);
+                        }
                     }
-                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    tokio::time::sleep(Duration::from_secs(30)).await;
                 }
             });
 
@@ -161,6 +163,7 @@ pub async fn run() {
             // nockchain node
             nockchain_node::node_start_master,
             nockchain_node::node_stop_master,
+            nockchain_node::node_peek,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

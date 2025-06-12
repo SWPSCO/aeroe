@@ -46,31 +46,37 @@
     }
 
     const getMasterPubkey = async () => {
+        walletMasterPubkey = undefined;
         const res = await wallet.masterPubkey(loadWalletName);
         walletMasterPubkey = res;
     }
 
     const getBalance = async () => {
+        walletBalance = undefined;
         const res = await wallet.balance(loadWalletName);   
         walletBalance = res;
     }
 
     const getHistory = async () => {
+        walletHistory = undefined;
         const res = await wallet.getHistory(loadWalletName);
         walletHistory = res;
     }
 
     const listDrafts = async () => {
+        drafts = undefined;
         const res = await wallet.listDrafts(loadWalletName);
         drafts = res;
     }
 
     const createDraft = async () => {
+        draft = undefined;
         const res = await wallet.createDraft(loadWalletName);
         draft = res;
     }
 
     const sendTransaction = async () => {
+        txResult = undefined;
         const res = await wallet.sendTransaction(loadWalletName, draft.id);
         txResult = res;
     }
