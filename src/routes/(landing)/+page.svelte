@@ -2,7 +2,7 @@
     import { goto } from '$app/navigation';
     import { onMount } from 'svelte';
     import { terms, aeroe } from '$lib/scripts/commands';
-    import TermsOfUse from './TermsOfUse.svelte';
+    import Terms from './Terms.svelte';
     import PrivacyPolicy from './PrivacyPolicy.svelte';
 
     let pageIsReady = $state(false);
@@ -81,7 +81,7 @@
         {#if termsOfUseAccepted}
             <PrivacyPolicy />
         {:else}
-            <TermsOfUse />
+            <Terms />
         {/if}
     </div>
     <button class="border-2 border-dark w-full p-4 mt-2 font-title bg-dark text-white cursor-pointer" onclick={()=>{termsOfUseAccepted ? acceptPrivacyPolicy() : acceptTermsOfUse()}}>Accept</button>
