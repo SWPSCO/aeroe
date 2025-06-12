@@ -1,38 +1,24 @@
 <script lang="ts">
-	import { vault } from '$lib/scripts/commands';
-	import { createEventDispatcher } from 'svelte';
+	import { welcomeStore } from '$lib/stores/welcome';
+	import Button from '$lib/components/shared/Button.svelte';
 
-	const dispatch = createEventDispatcher();
+	let password = '';
+	let confirmPassword = '';
+	let loading = false; // We can keep a local loading for the button, but store handles main state
 
-	let password = $state('');
-	let confirmPassword = $state('');
-	let loading = $state(false);
-	let error: string | null = $state(null);
-
-	const createAndLoadVault = async () => {
-		error = null;
+	const handleSubmit = () => {
 		if (password.trim() !== confirmPassword.trim()) {
-			error = 'Passwords do not match.';
+			// This can be a local error shown immediately
+			alert('Passwords do not match.');
 			return;
 		}
 		if (password.trim().length < 8) {
-			error = 'Password must be at least 8 characters long.';
+			alert('Password must be at least 8 characters long.');
 			return;
 		}
-
 		loading = true;
-		const createResult = await vault.create(password.trim());
-		if (createResult.success) {
-			const loadResult = await vault.load(password.trim());
-			if (loadResult.success) {
-				dispatch('created');
-			} else {
-				error = `Failed to load vault after creation: ${loadResult.error}`;
-			}
-		} else {
-			error = `Failed to create vault: ${createResult.error}`;
-		}
-		loading = false;
+		welcomeStore.submitPassword(password);
+		// No need to set loading = false, the component will be unmounted on success
 	};
 </script>
 
@@ -53,7 +39,7 @@
 				placeholder="Password (min. 8 characters)"
 				class="p-4 text-lg font-title text-dark border border-dark text-center"
 				onkeydown={(e) => {
-					if (e.key === 'Enter') createAndLoadVault();
+					if (e.key === 'Enter') handleSubmit();
 				}}
 			/>
 			<input
@@ -62,19 +48,15 @@
 				placeholder="Confirm Password"
 				class="p-4 text-lg font-title text-dark border border-dark text-center"
 				onkeydown={(e) => {
-					if (e.key === 'Enter') createAndLoadVault();
+					if (e.key === 'Enter') handleSubmit();
 				}}
 			/>
-			<button
-				class="bg-dark text-white py-4 px-8 disabled:opacity-50"
-				onclick={createAndLoadVault}
+			<Button
+				onclick={handleSubmit}
 				disabled={loading || password.trim().length < 8 || password.trim() !== confirmPassword.trim()}
 			>
 				Create Vault
-			</button>
+			</Button>
 		</div>
-		{#if error}
-			<p class="text-red-500 max-w-sm text-center">{error}</p>
-		{/if}
 	{/if}
 </div> 

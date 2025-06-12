@@ -1,6 +1,6 @@
 <script>
-    import Desktop from '$lib/components/TopNav/Desktop.svelte';
-    import Mobile from '$lib/components/TopNav/Mobile.svelte';
+    import Desktop from './TopNav/Desktop.svelte';
+    import Mobile from './TopNav/Mobile.svelte';
 
     $: innerWidth = 0;
 

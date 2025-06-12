@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { node } from "$lib/scripts/commands";
+    import { node } from "$lib/services/tauri";
     import Button from "./Button.svelte";
 
     let masterStatus: any = $state(undefined);

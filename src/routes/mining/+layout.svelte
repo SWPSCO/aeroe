@@ -2,7 +2,7 @@
 	import '../../app.css';
 	import Background from '$lib/components/Background.svelte';
 	import MainArea from '$lib/components/MainArea.svelte';
-	import TopNav from '$lib/components/TopNav.svelte';
+	import TopNav from '$lib/components/shared/TopNav.svelte';
 	import ContentArea from '$lib/components/ContentArea.svelte';
 	import FeatureArea from '$lib/components/FeatureArea.svelte';
 	import Footer from '$lib/components/Footer.svelte';

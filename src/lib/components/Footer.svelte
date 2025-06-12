@@ -1,17 +1,17 @@
-<script>
+<script lang="ts">
     import { getVersion } from '@tauri-apps/api/app';
     import { onMount } from 'svelte';
     import { listen } from '@tauri-apps/api/event';
-    import { updater } from '$lib/scripts/commands';
+    import { updater } from '$lib/services/tauri';
 
     let width = $state(0)
     let collapsed = $derived(width < 800)
-    let version = $state(null)
-    let updateInfo = $state({
+    let version: string | null = $state(null)
+    let updateInfo: { hasUpdate: boolean; updateVersion: string | null } = $state({
         hasUpdate: false,
         updateVersion: null,
     })
-    let progress = $state({
+    let progress: { downloaded: number; total: number } = $state({
         downloaded: 0,
         total: 0,
     })
@@ -24,10 +24,10 @@
 
     onMount(async () => {
         version = await getVersion() || "unknown"
-        const updateListener = await listen('update', (event) => {
+        const updateListener = await listen<{ hasUpdate: boolean; updateVersion: string | null }>('update', (event) => {
             updateInfo = event.payload;
         });
-        const updateDownloadedListener = await listen('update_downloaded', (event) => {
+        const updateDownloadedListener = await listen<{ downloaded: number; total: number }>('update_downloaded', (event) => {
             progress = event.payload;
         });
         // unlistens

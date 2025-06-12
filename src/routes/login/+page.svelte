@@ -1,27 +1,12 @@
 <script lang="ts">
-	import { vault } from '$lib/scripts/commands';
-	import { goto } from '$app/navigation';
+	import { loginStore } from '$lib/stores/login';
+    import Button from '$lib/components/shared/Button.svelte';
 
-	let password = $state('');
-	let loading = $state(false);
-	let error: string | null = $state(null);
-
-	const unlockVault = async () => {
-		error = null;
-		loading = true;
-
-		const result = await vault.load(password.trim());
-		if (result.success) {
-			goto('/wallet');
-		} else {
-			error = `Failed to unlock vault: ${result.error}`;
-		}
-		loading = false;
-	};
+	let password = '';
 </script>
 
 <div class="h-screen w-screen flex flex-col items-center justify-center gap-8">
-	{#if loading}
+	{#if $loginStore.state === 'pending'}
 		<div class="animate-pulse text-2xl font-title">Unlocking Vault...</div>
 	{:else}
 		<h1 class="text-2xl font-title">Unlock Your Vault</h1>
@@ -35,17 +20,14 @@
 				class="text-lg font-title text-dark border border-dark p-3 text-center w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
 				placeholder="Password"
 				aria-label="Password"
-				onkeydown={(e) => e.key === 'Enter' && unlockVault()}
+				onkeydown={(e) => e.key === 'Enter' && loginStore.login(password)}
 			/>
-			{#if error}
-				<p class="text-red-500 text-center">{error}</p>
+			{#if $loginStore.state === 'error'}
+				<p class="text-red-500 text-center">{$loginStore.error}</p>
 			{/if}
 		</div>
-		<button
-			class="bg-dark text-white py-4 px-8 hover:bg-gray-700 transition-colors duration-150"
-			onclick={unlockVault}
-		>
+		<Button onclick={() => loginStore.login(password)}>
 			Unlock
-		</button>
+		</Button>
 	{/if}
 </div> 
