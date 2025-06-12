@@ -19,7 +19,7 @@ pub struct Wallet {
     wallet_name: Option<String>,
     master_pubkey: Option<String>,
     balance: Option<u64>,
-    latest_block_id: Option<u32>,
+    block_height: Option<u32>,
     last_sync: Option<std::time::Instant>,
 }
 
@@ -32,7 +32,7 @@ impl Wallet {
             wallet_name: None,
             master_pubkey: None,
             balance: None,
-            latest_block_id: None,
+            block_height: None,
             last_sync: None,
         }
     }
@@ -42,6 +42,9 @@ impl Wallet {
     }
     pub fn get_active_wallet(&self) -> Option<String> {
         self.wallet_name.clone()
+    }
+    pub fn get_block_height(&self) -> Option<u32> {
+        self.block_height
     }
     pub async fn load(&mut self, wallet_name: String) -> Result<(), String> {
         self.wallet_name = Some(wallet_name);
@@ -57,7 +60,7 @@ impl Wallet {
             return Err("cannot update wallet state, status is none".to_string());
         };
 
-        match self.latest_block_id {
+        match self.block_height {
             Some(latest_block) => {
                 if latest_block == status {
                     return Ok(());
@@ -66,10 +69,10 @@ impl Wallet {
             None => {}
         }
 
-        tracing::info!("current block id: {:?}", self.latest_block_id);
+        tracing::info!("current block id: {:?}", self.block_height);
         tracing::info!("new block id: {:?}", status);
 
-        self.latest_block_id = Some(status);
+        self.block_height = Some(status);
 
         if let Some(last_sync) = self.last_sync {
             // only sync if last sync was more than 20 seconds ago

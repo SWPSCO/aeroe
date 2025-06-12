@@ -15,6 +15,7 @@ pub struct AeroeStatus {
     pub vault_exists: bool,
     pub vault_loaded: bool,
     pub master_node_running: bool, // nockchain node (doesn't mine)
+    pub block_height: Option<u32>,
     pub num_miners: u64, // total number of nodes mining
     pub wallets: Vec<String>, // list of wallet names
     pub active_wallet: Option<String>,
@@ -38,6 +39,7 @@ pub async fn aeroe_status(
         vault_exists: vault.vault_exists(),
         vault_loaded: vault.is_loaded(),
         master_node_running: master_running,
+        block_height: wallet.get_block_height(),
         num_miners: num_workers,
         wallets: vault.get_wallets(),
         active_wallet: wallet.get_active_wallet(),
