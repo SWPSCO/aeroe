@@ -4,10 +4,12 @@
     import { terms, aeroe } from '$lib/scripts/commands';
     import TermsOfUse from './TermsOfUse.svelte';
     import PrivacyPolicy from './PrivacyPolicy.svelte';
+    import { PUBLIC_AEROE_DEV_PAGE } from '$env/static/public';
 
     let pageIsReady = $state(false);
     let termsOfUseAccepted = $state(false);
     let privacyPolicyAccepted = $state(false);
+    let isDev = $state(PUBLIC_AEROE_DEV_PAGE === 'true');
     
     $effect(() => {
         async function handleNavigation() {
@@ -57,6 +59,9 @@
     }
 
     onMount(async () => {
+        if (isDev) {
+            goto("/dev");
+        }
         await checkTermsAccepted();
         await checkPrivacyAccepted();
         if (!termsOfUseAccepted || !privacyPolicyAccepted) {
