@@ -101,9 +101,22 @@ pub async fn run() {
                 let wallet_app = status_app_handle.state::<Mutex<manager::Wallet>>();
                 let mut status_receiver_rx = status_receiver_rx.lock().await;
                 loop {
-                    let status = status_receiver_rx.recv().await;
+                    let status = match status_receiver_rx.recv().await {
+                        Some(status) => status,
+                        None => {
+                            error!("Failed to receive status");
+                            continue;
+                        }
+                    };
+                    let height = match status.height() {
+                        Ok(height) => height,
+                        Err(e) => {
+                            error!("Failed to get height: {}", e);
+                            continue;
+                        }
+                    };
                     let mut wallet_app = wallet_app.lock().await;
-                    let res = wallet_app.update(status).await;
+                    let res = wallet_app.update(height).await;
                     if let Err(e) = res {
                         error!("Failed to update wallet state: {}", e);
                     }
@@ -148,8 +161,6 @@ pub async fn run() {
             // nockchain node
             nockchain_node::node_start_master,
             nockchain_node::node_stop_master,
-            nockchain_node::node_start_mining,
-            nockchain_node::node_stop_mining,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

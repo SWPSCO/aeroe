@@ -5,8 +5,6 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 use std::path::PathBuf;
 
-use crate::manager::NockchainStatus;
-
 pub struct WalletCommand {
     pub command: Commands,
     pub response: oneshot::Sender<Result<Vec<NounSlab>, String>>,
@@ -55,22 +53,18 @@ impl Wallet {
         self.balance = Some(balance);
         Ok(())
     }
-    pub async fn update(&mut self, option_status: Option<NockchainStatus>) -> Result<(), String> {
-        let Some(status) = option_status else {
-            return Err("cannot update wallet state, status is none".to_string());
-        };
-
+    pub async fn update(&mut self, new_height: u32) -> Result<(), String> {
         match self.block_height {
             Some(latest_block) => {
-                if latest_block == status {
+                if latest_block == new_height {
                     return Ok(());
                 }
             },
             None => {}
         }
 
-        tracing::info!("current block id: {:?}, new block id: {:?}", self.block_height, status);
-        self.block_height = Some(status);
+        tracing::info!("current block id: {:?}, new block id: {:?}", self.block_height, new_height);
+        self.block_height = Some(new_height);
 
         if let Some(last_sync) = self.last_sync {
             // only sync if last sync was more than 20 seconds ago

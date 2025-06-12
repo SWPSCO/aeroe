@@ -110,8 +110,8 @@ pub fn spawn_nockchain_service(
                                 }
                                 let _ = cmd.response.send(Ok(NockchainResponse::Success));
                             },
+                            /*
                             NockchainRequest::SetWorkers(_num_workers) => {
-                                /*
                                 let current_workers = provers.keys().filter(|k| k.starts_with("worker")).count() as u64;
 
                                 if num_workers > current_workers {
@@ -133,8 +133,8 @@ pub fn spawn_nockchain_service(
                                     }
                                 }
                                 let _ = cmd.response.send(Ok(NockchainResponse::Success));
-                                */
                             },
+                            */
                             NockchainRequest::GetStatus => {
                                 let master_running = provers.contains_key("master");
                                 // let num_workers = provers.keys().filter(|k| k.starts_with("worker")).count() as u64;

@@ -14,16 +14,6 @@
         const res = await node.stopMaster();
         masterStatus = res;
     }
-
-    const startMining = async () => {
-        const res = await node.startMining("max");
-        miningStatus = res;
-    }
-
-    const stopMining = async () => {
-        const res = await node.stopMining();
-        miningStatus = res;
-    }
 </script>
 <div class="flex flex-col gap-4 border-2 border-dark p-4">
     <div class="flex gap-4 text-xs font-title items-center">
@@ -33,12 +23,5 @@
             <Button onClick={stopMaster} disabled={false}>Stop</Button>
         </div>
         <div>{JSON.stringify(masterStatus)}</div>
-    </div>
-    <div class="flex gap-4 text-xs font-title items-center">
-        <div>Mining:</div>
-        <div class="flex gap-2">
-            <Button onClick={startMining} disabled={false}>Max</Button>
-            <Button onClick={stopMining} disabled={false}>Stop</Button>
-        </div>
     </div>
 </div>

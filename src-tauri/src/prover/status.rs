@@ -24,7 +24,7 @@ pub fn status_driver(
                     NockchainPeek::Height => "height",
                 };
                 let mut slab = NounSlab::new();
-                let Ok(peek) = handle.peek(do_peek(&mut slab, command)).await else {
+                let Ok(peek) = handle.peek(make_slab(&mut slab, command)).await else {
                     tracing::error!("peek failed");
                     continue;
                 };
@@ -32,15 +32,8 @@ pub fn status_driver(
                     tracing::error!("invalid peek noun");
                     continue;
                 };
-                let Ok(atom) = noun.as_atom() else {
-                    tracing::error!("invalid noun, not an atom");
-                    continue;
-                };
-                let Ok(height) = format!("{:?}", atom).parse::<u32>() else {
-                    tracing::error!("invalid noun, not a valid u32");
-                    continue;
-                };
-                let Ok(_) = status_receiver_tx.send(height).await else {
+                let response = NockchainStatus::new(peek_command, noun);
+                let Ok(_) = status_receiver_tx.send(response).await else {
                     tracing::error!("failed to send status");
                     continue;
                 };
@@ -54,7 +47,7 @@ pub fn status_driver(
     })
 }
 
-fn do_peek(slab: &mut NounSlab, command: &str) -> NounSlab {
+fn make_slab(slab: &mut NounSlab, command: &str) -> NounSlab {
     let head = make_tas(slab, command).as_noun();
     let peek_noun = T(slab, &[head, D(0)]);
     slab.set_root(peek_noun);
