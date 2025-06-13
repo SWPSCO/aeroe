@@ -3246,7 +3246,7 @@ dependencies = [
 [[package]]
 name = "hoonc"
 version = "0.2.0"
-source = "git+https://github.com/swpsco/nockchain.git?rev=38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27#38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27"
+source = "git+https://github.com/swpsco/nockchain.git?rev=13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002#13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002"
 dependencies = [
  "bincode",
  "blake3",
@@ -3489,7 +3489,7 @@ dependencies = [
 [[package]]
 name = "ibig"
 version = "0.3.6"
-source = "git+https://github.com/swpsco/nockchain.git?rev=38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27#38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27"
+source = "git+https://github.com/swpsco/nockchain.git?rev=13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002#13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002"
 dependencies = [
  "cfg-if",
  "num-traits",
@@ -4061,7 +4061,7 @@ dependencies = [
 [[package]]
 name = "kernels"
 version = "0.1.0"
-source = "git+https://github.com/swpsco/nockchain.git?rev=38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27#38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27"
+source = "git+https://github.com/swpsco/nockchain.git?rev=13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002#13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002"
 
 [[package]]
 name = "key-utils"
@@ -4898,7 +4898,7 @@ dependencies = [
 [[package]]
 name = "murmur3"
 version = "0.5.2"
-source = "git+https://github.com/swpsco/nockchain.git?rev=38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27#38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27"
+source = "git+https://github.com/swpsco/nockchain.git?rev=13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002#13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002"
 
 [[package]]
 name = "native-tls"
@@ -5060,7 +5060,7 @@ checksum = "b93853da6d84c2e3c7d730d6473e8817692dd89be387eb01b94d7f108ecb5b8c"
 [[package]]
 name = "nockapp"
 version = "0.1.0"
-source = "git+https://github.com/swpsco/nockchain.git?rev=38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27#38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27"
+source = "git+https://github.com/swpsco/nockchain.git?rev=13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002#13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5115,7 +5115,7 @@ dependencies = [
 [[package]]
 name = "nockchain"
 version = "0.1.0"
-source = "git+https://github.com/swpsco/nockchain.git?rev=38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27#38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27"
+source = "git+https://github.com/swpsco/nockchain.git?rev=13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002#13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002"
 dependencies = [
  "bitcoincore-rpc",
  "bs58 0.5.1",
@@ -5142,7 +5142,7 @@ dependencies = [
 [[package]]
 name = "nockchain-bitcoin-sync"
 version = "0.1.0"
-source = "git+https://github.com/swpsco/nockchain.git?rev=38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27#38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27"
+source = "git+https://github.com/swpsco/nockchain.git?rev=13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002#13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002"
 dependencies = [
  "bitcoincore-rpc",
  "ibig",
@@ -5157,7 +5157,7 @@ dependencies = [
 [[package]]
 name = "nockchain-libp2p-io"
 version = "0.1.0"
-source = "git+https://github.com/swpsco/nockchain.git?rev=38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27#38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27"
+source = "git+https://github.com/swpsco/nockchain.git?rev=13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002#13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002"
 dependencies = [
  "bs58 0.5.1",
  "bytes",
@@ -5183,7 +5183,7 @@ dependencies = [
 [[package]]
 name = "nockchain-wallet-lib"
 version = "0.1.0"
-source = "git+https://github.com/swpsco/nockchain-wallet-lib.git?rev=3bac1c70038d1c2b40c84dac43277895a2beffc1#3bac1c70038d1c2b40c84dac43277895a2beffc1"
+source = "git+https://github.com/swpsco/nockchain-wallet-lib.git?rev=c1e2ffd383f9f5510be7d0cd0a55ea24d6fb228f#c1e2ffd383f9f5510be7d0cd0a55ea24d6fb228f"
 dependencies = [
  "bardecoder",
  "clap",
@@ -5208,7 +5208,7 @@ dependencies = [
 [[package]]
 name = "nockvm"
 version = "0.1.0"
-source = "git+https://github.com/swpsco/nockchain.git?rev=38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27#38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27"
+source = "git+https://github.com/swpsco/nockchain.git?rev=13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002#13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002"
 dependencies = [
  "autotools",
  "bitvec",
@@ -5236,7 +5236,7 @@ dependencies = [
 [[package]]
 name = "nockvm_crypto"
 version = "0.1.0"
-source = "git+https://github.com/swpsco/nockchain.git?rev=38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27#38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27"
+source = "git+https://github.com/swpsco/nockchain.git?rev=13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002#13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002"
 dependencies = [
  "aes",
  "aes-siv",
@@ -5251,7 +5251,7 @@ dependencies = [
 [[package]]
 name = "nockvm_macros"
 version = "0.1.0"
-source = "git+https://github.com/swpsco/nockchain.git?rev=38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27#38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27"
+source = "git+https://github.com/swpsco/nockchain.git?rev=13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002#13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -10448,7 +10448,7 @@ dependencies = [
 [[package]]
 name = "zkvm-jetpack"
 version = "0.1.0"
-source = "git+https://github.com/swpsco/nockchain.git?rev=38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27#38bc3f52f4ce62ec19a9f2a594c7dfa6f59feb27"
+source = "git+https://github.com/swpsco/nockchain.git?rev=13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002#13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002"
 dependencies = [
  "argon2",
  "arrayref",

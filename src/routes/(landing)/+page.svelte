@@ -3,7 +3,17 @@
     import { onboardingStore } from '$lib/stores/onboarding';
     import Terms from './Terms.svelte';
     import PrivacyPolicy from './PrivacyPolicy.svelte';
+
+    // Dev
+    import { PUBLIC_AEROE_DEV_PAGE } from '$env/static/public';
+    import { goto } from '$app/navigation';
+    // End Dev
     onMount(() => {
+        // Dev
+        if (PUBLIC_AEROE_DEV_PAGE === 'true') {
+            goto("/dev");
+        }
+        // End Dev
         onboardingStore.checkStatus();
     });
 </script>
