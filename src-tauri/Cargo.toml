@@ -57,7 +57,7 @@ key-utils = { git = "https://github.com/stratum-mining/stratum.git", rev = "6a48
 roles_logic_sv2 = { git = "https://github.com/stratum-mining/stratum.git", rev = "6a4874d1302327e169cd894dc5a79f52d533dcc9", package = "roles_logic_sv2" }
 
 # nockchain
-nockchain-wallet-lib = { git = "https://github.com/swpsco/nockchain-wallet-lib.git", rev = "c1e2ffd383f9f5510be7d0cd0a55ea24d6fb228f" }
+nockchain-wallet-lib = { git = "https://github.com/swpsco/nockchain-wallet-lib.git", rev = "cc6e8b4c1dfa6ce3711954d8c2796ffde910e04e" }
 nockchain = { git = "https://github.com/swpsco/nockchain.git", rev = "13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002", package = "nockchain" }
 nockvm = { git = "https://github.com/swpsco/nockchain.git", rev = "13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002", package = "nockvm" }
 nockapp = { git = "https://github.com/swpsco/nockchain.git", rev = "13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002", package = "nockapp" }

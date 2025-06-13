@@ -1,14 +1,52 @@
 use nockapp::noun::slab::NounSlab;
 use nockchain_wallet_lib::Commands;
-use nockvm::noun::Noun;
+use nockvm::noun::{Noun, D};
+
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
+
 use std::path::PathBuf;
+use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
 
 pub struct WalletCommand {
     pub command: Commands,
     pub response: oneshot::Sender<Result<Vec<NounSlab>, String>>,
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TransactionEntry {
+    pub recipient: String,
+    pub amount: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum NockchainTxStatus {
+    Draft,
+    Signed,
+    Pending,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NockchainTxMeta {
+    pub draft_id: String,
+    pub transactions: Vec<TransactionEntry>,
+    pub fee: u64,
+    pub created_at: String,
+    pub signed_at: Option<String>,
+    pub broadcasted_at: Option<String>,
+    pub status: NockchainTxStatus,
+}
+
+#[derive(Debug)]
+pub struct NockchainTx {
+    metadata: NockchainTxMeta,
+    data: Noun,
+}
+
 
 #[derive(Debug)]
 pub struct Wallet {
@@ -19,6 +57,7 @@ pub struct Wallet {
     balance: Option<u64>,
     block_height: Option<u32>,
     last_sync: Option<std::time::Instant>,
+    drafts: HashMap<String, NockchainTx>,
 }
 
 impl Wallet {
@@ -32,6 +71,7 @@ impl Wallet {
             balance: None,
             block_height: None,
             last_sync: None,
+            drafts: HashMap::new(),
         }
     }
     pub async fn clear_state(&self) -> Result<(), String> {
@@ -89,6 +129,118 @@ impl Wallet {
             return Err("master pubkey is not set".to_string());
         };
         Ok(pubkey)
+    }
+    pub async fn create_tx(&mut self, transactions: Vec<TransactionEntry>, fee: u64) -> Result<NockchainTxMeta, String> {
+        // if amount of transactions is 0, return error
+        if transactions.is_empty() {
+            return Err("no transactions".to_string());
+        }
+        // if fee is 0, return error
+        if fee == 0 {
+            return Err("fee is 0".to_string());
+        }
+        // if fee is greater than balance, return error
+        let balance = self.get_balance().await?;
+        if fee > balance {
+            return Err("fee is greater than balance".to_string());
+        }
+        // if combined amount of transactions is greater than balance, return error
+        let total_amount = transactions.iter().map(|t| t.amount).sum::<u64>();
+        if total_amount > balance {
+            return Err("total amount of transactions is greater than balance".to_string());
+        }
+        // list notes
+        // select appropriate notes
+        // construct simple-spend
+        // let draft = self.send_command(Commands::SimpleSpend { /* simple spend */ }).await?;
+        // let (draft_name, draft_jam) = self.process_draft(draft).await?;
+        // save draft to notes
+
+        // temporary - generate random 32 char string
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        std::hash::Hash::hash(&now, &mut hasher);
+        std::hash::Hash::hash(&std::thread::current().id(), &mut hasher);
+        let hash1 = std::hash::Hasher::finish(&hasher);
+        
+        let mut hasher2 = std::collections::hash_map::DefaultHasher::new();
+        std::hash::Hash::hash(&(hash1 ^ 0xdeadbeef), &mut hasher2);
+        let hash2 = std::hash::Hasher::finish(&hasher2);
+        
+        let draft_name = format!("{:016x}{:016x}", hash1, hash2);
+        let draft_jam = D(0);
+        // end temporary
+
+        let draft_id = draft_name.clone();
+
+        let draft_meta = NockchainTxMeta {
+            draft_id,
+            transactions,
+            fee,
+            created_at: now.to_string(),
+            signed_at: None,
+            broadcasted_at: None,
+            status: NockchainTxStatus::Draft,
+        };
+        self.drafts.insert(draft_name.clone(), NockchainTx {
+            metadata: draft_meta.clone(),
+            data: draft_jam,
+        });
+        Ok(draft_meta)
+    }
+    pub async fn sign_tx(&mut self, draft_id: String) -> Result<NockchainTxMeta, String> {
+        let Some(draft) = self.drafts.get_mut(&draft_id) else {
+            return Err("draft not found".to_string());
+        };
+        // send command to sign the draft
+        /*
+        let signed = self.send_command(Commands::SignTx {
+            &draft.data // send in the raw data
+        }).await?;
+        */
+        // let data = process_draft(signed)
+        // temporary
+        let signed = D(1);
+
+        // update the draft
+        draft.metadata.status = NockchainTxStatus::Signed;
+        draft.data = signed;
+        draft.metadata.signed_at = Some(std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+            .to_string());
+        Ok(draft.metadata.clone())
+    }
+    pub async fn send_tx(&mut self, draft_id: String) -> Result<NockchainTxMeta, String> {
+        let Some(draft) = self.drafts.get_mut(&draft_id) else {
+            return Err("draft not found".to_string());
+        };
+        // send command to broadcast the transaction
+        /*
+        let _ = self.send_command(Commands::MakeTx {
+            &draft.data // send in the raw data
+        }).await?;
+        */
+
+        // update the draft
+        draft.metadata.status = NockchainTxStatus::Pending;
+        draft.metadata.broadcasted_at = Some(std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+            .to_string());
+        Ok(draft.metadata.clone())
+    }
+    pub async fn list_unsent_txs(&self) -> Result<HashMap<String, NockchainTxMeta>, String> {
+        // self.drafts but only the key and metadata
+        let unsent_txs = self.drafts.iter()
+            .map(|(k, v)| (k.clone(), v.metadata.clone()))
+            .collect::<HashMap<String, NockchainTxMeta>>();
+        Ok(unsent_txs)
     }
     //
     // peeks

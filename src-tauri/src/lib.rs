@@ -160,6 +160,10 @@ pub async fn run() {
             wallet::wallet_load,
             wallet::master_pubkey,
             wallet::balance,
+            wallet::create_tx,
+            wallet::sign_tx,
+            wallet::send_tx,
+            wallet::list_unsent_txs,
             // nockchain node
             nockchain_node::node_start_master,
             nockchain_node::node_stop_master,
