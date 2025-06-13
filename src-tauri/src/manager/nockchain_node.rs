@@ -5,7 +5,7 @@ use tokio::sync::oneshot;
 pub enum NockchainRequest {
     StartMaster,
     StopMaster,
-    SetWorkers(u64),
+    // SetWorkers(u64),
     GetStatus,
 }
 
@@ -64,6 +64,7 @@ impl NockchainNode {
             Err(e) => Err(e.to_string()),
         }
     }
+    /*
     pub async fn set_workers(&mut self, num_workers: u64) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
         self.command_tx.send(NockchainCommand {
@@ -80,6 +81,7 @@ impl NockchainNode {
             Err(e) => Err(e.to_string()),
         }
     }
+    */
 
     pub async fn get_status(&mut self) -> Result<(bool, u64), String> {
         let (tx, rx) = oneshot::channel();

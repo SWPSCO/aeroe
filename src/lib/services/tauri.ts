@@ -71,6 +71,5 @@ export const wallet = {
 export const node = {
     startMaster: () => handleInvoke<void>('node_start_master'),
     stopMaster: () => handleInvoke<void>('node_stop_master'),
-    startMining: (miningProfile: string) => handleInvoke<void>('node_start_mining', { miningProfile }),
-    stopMining: () => handleInvoke<void>('node_stop_mining'),
+    peek: (command: string) => handleInvoke<any>('node_peek', { command }),
 } 

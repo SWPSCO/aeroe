@@ -3,7 +3,6 @@
     import { onboardingStore } from '$lib/stores/onboarding';
     import Terms from './Terms.svelte';
     import PrivacyPolicy from './PrivacyPolicy.svelte';
-
     onMount(() => {
         onboardingStore.checkStatus();
     });

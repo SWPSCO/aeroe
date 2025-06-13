@@ -15,7 +15,7 @@ use nockapp::wire::{SystemWire, Wire};
 
 use nockchain::driver_init;
 
-use crate::manager::NockchainStatus;
+use crate::manager::{NockchainPeek, NockchainStatus};
 
 use nockvm::noun::{D, T};
 use nockvm_macros::tas;
@@ -28,12 +28,23 @@ use zkvm_jetpack::hot::produce_prover_hot_state;
 pub struct Prover {
     name: String,
     nockchain_dir: PathBuf,
-    status_tx: tokio::sync::mpsc::Sender<NockchainStatus>,
+    status_receiver_tx: tokio::sync::mpsc::Sender<NockchainStatus>,
+    status_caller_rx: tokio::sync::broadcast::Receiver<NockchainPeek>,
 }
 
 impl Prover {
-    pub fn new(name: String, nockchain_dir: PathBuf, status_tx: tokio::sync::mpsc::Sender<NockchainStatus>) -> Self {
-        Self { name, nockchain_dir, status_tx }
+    pub fn new(
+        name: String,
+        nockchain_dir: PathBuf,
+        status_receiver_tx: tokio::sync::mpsc::Sender<NockchainStatus>,
+        status_caller_rx: tokio::sync::broadcast::Receiver<NockchainPeek>,
+    ) -> Self {
+        Self {
+            name,
+            nockchain_dir,
+            status_receiver_tx,
+            status_caller_rx,
+        }
     }
 
     pub async fn start(&mut self) -> Result<(), String> {
@@ -71,7 +82,12 @@ impl Prover {
         nockapp.add_io_driver(npc_listener_driver(self.npc_socket(socket_path)?)).await;
 
         // status_driver
-        nockapp.add_io_driver(status::status_driver(self.status_tx.clone())).await;
+        nockapp.add_io_driver(
+            status::status_driver(
+                self.status_receiver_tx.clone(),
+                self.status_caller_rx.resubscribe(),
+            )
+        ).await;
 
         // exit_driver
         nockapp.add_io_driver(nockapp::exit_driver()).await;

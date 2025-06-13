@@ -5,8 +5,6 @@ use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 use std::path::PathBuf;
 
-use crate::manager::NockchainStatus;
-
 pub struct WalletCommand {
     pub command: Commands,
     pub response: oneshot::Sender<Result<Vec<NounSlab>, String>>,
@@ -19,7 +17,7 @@ pub struct Wallet {
     wallet_name: Option<String>,
     master_pubkey: Option<String>,
     balance: Option<u64>,
-    latest_block_id: Option<u32>,
+    block_height: Option<u32>,
     last_sync: Option<std::time::Instant>,
 }
 
@@ -32,7 +30,7 @@ impl Wallet {
             wallet_name: None,
             master_pubkey: None,
             balance: None,
-            latest_block_id: None,
+            block_height: None,
             last_sync: None,
         }
     }
@@ -43,6 +41,9 @@ impl Wallet {
     pub fn get_active_wallet(&self) -> Option<String> {
         self.wallet_name.clone()
     }
+    pub fn get_block_height(&self) -> Option<u32> {
+        self.block_height
+    }
     pub async fn load(&mut self, wallet_name: String) -> Result<(), String> {
         self.wallet_name = Some(wallet_name);
         let pubkey = self.peek_master_pubkey().await?;
@@ -52,24 +53,18 @@ impl Wallet {
         self.balance = Some(balance);
         Ok(())
     }
-    pub async fn update(&mut self, option_status: Option<NockchainStatus>) -> Result<(), String> {
-        let Some(status) = option_status else {
-            return Err("cannot update wallet state, status is none".to_string());
-        };
-
-        match self.latest_block_id {
+    pub async fn update(&mut self, new_height: u32) -> Result<(), String> {
+        match self.block_height {
             Some(latest_block) => {
-                if latest_block == status {
+                if latest_block == new_height {
                     return Ok(());
                 }
             },
             None => {}
         }
 
-        tracing::info!("current block id: {:?}", self.latest_block_id);
-        tracing::info!("new block id: {:?}", status);
-
-        self.latest_block_id = Some(status);
+        tracing::info!("current block id: {:?}, new block id: {:?}", self.block_height, new_height);
+        self.block_height = Some(new_height);
 
         if let Some(last_sync) = self.last_sync {
             // only sync if last sync was more than 20 seconds ago

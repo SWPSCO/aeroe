@@ -15,7 +15,7 @@ async fn main() {
     let fmt_layer = fmt::layer().with_ansi(true).event_format(MinimalFormatter);
 
     let filter = EnvFilter::builder()
-        .with_default_directive("debug".parse().unwrap())
+        .with_default_directive("info".parse().unwrap())
         .from_env_lossy();
 
     tracing_subscriber::registry()
