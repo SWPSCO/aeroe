@@ -1,11 +1,11 @@
 <script lang="ts">
-    import { terms } from "$lib/scripts/commands";
+    import { terms } from "$lib/services/tauri";
     import { onMount } from "svelte";
     import Button from "./Button.svelte";
 
-    let termsAccepted = $state(undefined);
+    let termsAccepted: boolean | undefined | unknown = $state(undefined);
     let termsLoading = $state(false);
-    let privacyAccepted = $state(undefined);
+    let privacyAccepted: boolean | undefined | unknown = $state(undefined);
     let privacyLoading = $state(false);
 
     const getTermsAndPrivacy = async () => {
@@ -42,10 +42,10 @@
 <div class="flex flex-col gap-4 border-2 border-dark p-4">
     <div class="flex gap-4 text-xs font-title items-center">
         <div>Terms of use accepted: {termsLoading ? "loading..." : termsAccepted}</div>
-        <Button onClick={() => setTermsAccepted("terms")}>Accept terms</Button>
+        <Button onClick={() => setTermsAccepted("terms")} disabled={termsLoading}>Accept terms</Button>
     </div>
     <div class="flex gap-4 text-xs font-title items-center">
         <div>Privacy policy accepted: {privacyLoading ? "loading..." : privacyAccepted}</div>
-        <Button onClick={() => setTermsAccepted("privacy")}>Accept privacy</Button>
+        <Button onClick={() => setTermsAccepted("privacy")} disabled={privacyLoading}>Accept privacy</Button>
     </div>
 </div>

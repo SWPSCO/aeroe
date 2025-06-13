@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { vault } from "$lib/scripts/commands";
+    import { vault } from "$lib/services/tauri";
     import Button from "./Button.svelte";
 
     let vaultCreate: any = $state(undefined);

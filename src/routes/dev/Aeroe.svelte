@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { aeroe } from "$lib/scripts/commands";
+    import { aeroe } from "$lib/services/tauri";
     import Button from "./Button.svelte";
 
     let aeroeStatus: any = $state(undefined);
@@ -17,7 +17,7 @@
 <div class="flex flex-col gap-4 border-2 border-dark p-4">
     <div class="flex gap-4 text-xs font-title items-center">
         <div>Aeroe status</div>
-        <Button onClick={getAeroeStatus}>Get Aeroe status</Button>
+        <Button onClick={getAeroeStatus} disabled={false}>Get Aeroe status</Button>
         <div>{JSON.stringify(aeroeStatus)}</div>
     </div>
 </div>

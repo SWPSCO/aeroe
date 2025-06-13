@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { wallet } from "$lib/scripts/commands";
+    import { wallet } from "$lib/services/tauri";
     import Button from "./Button.svelte";
 
     let walletKeygen: any = $state(undefined);
@@ -23,7 +23,7 @@
         keygenLoading = true;
         walletKeygen = undefined;
         const res = await wallet.keygen();
-        if (res.success) {
+        if (res.success && res.data) {
             walletKeygen = res.data.join(" ");
         } else {
             walletKeygen = res.error;
