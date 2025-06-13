@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { onboardingStore } from '$lib/stores/onboarding';
-    import TermsOfUse from './TermsOfUse.svelte';
+    import Terms from './Terms.svelte';
     import PrivacyPolicy from './PrivacyPolicy.svelte';
 
     onMount(() => {
@@ -24,7 +24,7 @@
             {#if $onboardingStore.termsAccepted}
                 <PrivacyPolicy />
             {:else}
-                <TermsOfUse />
+                <Terms />
             {/if}
         </div>
         <button 
