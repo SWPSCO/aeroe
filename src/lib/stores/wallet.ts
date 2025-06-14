@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { wallet as walletService, type WalletBalance } from '$lib/services/tauri';
+import { wallet as walletService, type WalletBalance } from '$lib/services';
 
 export interface WalletState {
   status: 'locked' | 'loading' | 'loaded' | 'error';
