@@ -76,7 +76,6 @@ export const wallet = {
     create: (walletName: string, seedphrase: string[]) => {
         console.log(`Mock wallet created: ${walletName} with seed`, seedphrase);
         mockState.wallets.push(walletName);
-        mockState.balances[walletName] = 0; // Set initial balance to 0 for new wallets
         return mockInvoke<void>(undefined);
     },
     load: (walletName: string) => {
@@ -84,10 +83,7 @@ export const wallet = {
         return mockInvoke<void>(undefined);
     },
     masterPubkey: (walletName: string) => mockInvoke<string>(`mock-pubkey-for-${walletName}`),
-    balance: (walletName: string) => {
-        const amount = mockState.balances[walletName] ?? 123.45;
-        return mockInvoke<WalletBalance>({ coin: 'Nock', amount });
-    },
+    balance: (walletName: string) => mockInvoke<WalletBalance>({ coin: 'Nock', amount: 123.45 }),
     getHistory: (walletName: string) => mockInvoke<any>({ transactions: [] }),
     listDrafts: (walletName: string) => mockInvoke<any>({ drafts: [] }),
     createDraft: (walletName: string) => mockInvoke<any>({ draftId: 'mock-draft-123' }),

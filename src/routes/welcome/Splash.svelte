@@ -3,23 +3,14 @@
 
 	const dispatch = createEventDispatcher();
 </script>
-
-<div class="flex flex-col gap-4 justify-center items-center h-full text-center">
-	<h1 class="text-4xl font-title">Welcome to Nock</h1>
-	<p class="font-body text-lg">Your gateway to the Nockchain.</p>
-
-	<div class="mt-8 flex flex-col gap-4">
-		<button
-			class="w-[240px] bg-dark text-white p-4 font-title"
-			on:click={() => dispatch('create')}
-		>
-			Create New Wallet
-		</button>
-		<button
-			class="w-[240px] border-2 border-dark text-dark p-4 font-title"
-			on:click={() => dispatch('import')}
-		>
-			Import Existing Wallet
-		</button>
-	</div>
+<div class="flex flex-col items-center justify-center gap-4">
+    <h1 class="text-4xl font-title">Welcome to <span class="text-highlight-orange">AEROE</span></h1>
+    <h4 class="text-md font-title">Brought to you by the <span class="text-highlight-orange">Southwestern Pool Supply Company</span></h4>
+</div>
+<div class="flex gap-4">
+    <button class="w-[240px] bg-dark text-white py-4" onclick={() => dispatch("import")}>Import Wallet</button>
+    <button
+        class="w-[240px] bg-dark text-white py-4"
+        onclick={() => dispatch("create")}
+    >Create Wallet</button>
 </div>
