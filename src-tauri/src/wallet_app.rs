@@ -29,6 +29,7 @@ impl WalletApp {
             | Commands::PeekMasterPubkey
             | Commands::PeekState
             | Commands::PeekReceiveAddress
+            | Commands::PeekNotes
             | Commands::Keygen
             | Commands::DeriveChild { .. }
             | Commands::ImportKeys { .. }
@@ -43,7 +44,8 @@ impl WalletApp {
             | Commands::ShowSeedphrase
             | Commands::ShowMasterPubkey
             | Commands::ShowMasterPrivkey
-            | Commands::SimpleSpend { .. } => false,
+            | Commands::SimpleSpend { .. }
+            | Commands::AeroeSpend { .. } => false,
 
             // All other commands DO need sync
             _ => true,
@@ -75,6 +77,10 @@ impl WalletApp {
             }
             Commands::PeekPubkeys => {
                 let (noun, _op) = Wallet::peek_pubkeys().map_err(|e| e.to_string())?;
+                return Ok(Self::do_peek(noun, data_dir).await?);
+            }
+            Commands::PeekNotes => {
+                let (noun, _op) = Wallet::peek_notes().map_err(|e| e.to_string())?;
                 return Ok(Self::do_peek(noun, data_dir).await?);
             }
 
@@ -109,6 +115,9 @@ impl WalletApp {
             Commands::SignTx { draft, index } => {
                 Wallet::sign_tx(&draft, index).map_err(|e| e.to_string())?
             }
+            Commands::SignAeroeTx { draft, index, file_path } => {
+                Wallet::sign_aeroe_tx(&draft, index, file_path.clone()).map_err(|e| e.to_string())?
+            }
             Commands::MakeTx { draft } => Wallet::make_tx(&draft).map_err(|e| e.to_string())?,
             Commands::GenMasterPrivkey { seedphrase } => {
                 Wallet::gen_master_privkey(&seedphrase).map_err(|e| e.to_string())?
@@ -136,6 +145,14 @@ impl WalletApp {
                 gifts,
                 fee,
             } => Wallet::simple_spend(names.clone(), recipients.clone(), gifts.clone(), fee)
+                .map_err(|e| e.to_string())?,
+            Commands::AeroeSpend {
+                names,
+                recipients,
+                gifts,
+                fee,
+                file_path,
+            } => Wallet::aeroe_spend(names.clone(), recipients.clone(), gifts.clone(), fee, file_path)
                 .map_err(|e| e.to_string())?,
             // Sync
             Commands::Scan {

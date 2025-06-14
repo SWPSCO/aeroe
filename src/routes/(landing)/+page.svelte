@@ -1,9 +1,23 @@
 <script lang="ts">
-	import { onboardingStore } from '$lib/stores/onboarding';
-	import Terms from './Terms.svelte';
-	import PrivacyPolicy from './PrivacyPolicy.svelte';
+    import { onMount } from 'svelte';
+    import { onboardingStore } from '$lib/stores/onboarding';
+    import Terms from './Terms.svelte';
+    import PrivacyPolicy from './PrivacyPolicy.svelte';
 
-	$: allAccepted = $onboardingStore.termsAccepted && $onboardingStore.privacyAccepted;
+    // Dev
+    import { PUBLIC_AEROE_DEV_PAGE } from '$env/static/public';
+    import { goto } from '$app/navigation';
+    // End Dev
+    
+    $: allAccepted = $onboardingStore.termsAccepted && $onboardingStore.privacyAccepted;
+
+    onMount(() => {
+        // Dev
+        if (PUBLIC_AEROE_DEV_PAGE === 'true') {
+            goto("/dev");
+        }
+        // End Dev
+    });
 </script>
 
 <div class="m-8 flex flex-col h-[calc(100vh-4rem)]">

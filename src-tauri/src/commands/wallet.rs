@@ -1,6 +1,8 @@
 use tokio::sync::Mutex;
 use tauri::State;
 
+use std::collections::HashMap;
+
 use crate::keycrypt::Keycrypt;
 use crate::manager;
 
@@ -71,4 +73,60 @@ pub async fn balance(
         return Err("wallet name mismatch".to_string());
     }
     wallet_lock.get_balance().await
+}
+
+#[tauri::command]
+pub async fn create_tx(
+    wallet: tauri::State<'_, Mutex<manager::Wallet>>,
+    wallet_name: String,
+    transactions: Vec<manager::TransactionEntry>,
+    fee: u64,
+) -> Result<manager::NockchainTxMeta, String> {
+    let mut wallet_lock = wallet.lock().await;
+    let loaded_wallet_name = wallet_lock.get_active_wallet();
+    if loaded_wallet_name != Some(wallet_name) {
+        return Err("wallet name mismatch".to_string());
+    }
+    wallet_lock.create_tx(transactions, fee).await
+}
+
+#[tauri::command]
+pub async fn sign_tx(
+    wallet: tauri::State<'_, Mutex<manager::Wallet>>,
+    wallet_name: String,
+    draft_id: String,
+) -> Result<manager::NockchainTxMeta, String> {
+    let mut wallet_lock = wallet.lock().await;
+    let loaded_wallet_name = wallet_lock.get_active_wallet();
+    if loaded_wallet_name != Some(wallet_name) {
+        return Err("wallet name mismatch".to_string());
+    }
+    wallet_lock.sign_tx(draft_id).await
+}
+
+#[tauri::command]
+pub async fn send_tx(
+    wallet: tauri::State<'_, Mutex<manager::Wallet>>,
+    wallet_name: String,
+    draft_id: String,
+) -> Result<manager::NockchainTxMeta, String> {
+    let mut wallet_lock = wallet.lock().await;
+    let loaded_wallet_name = wallet_lock.get_active_wallet();
+    if loaded_wallet_name != Some(wallet_name) {
+        return Err("wallet name mismatch".to_string());
+    }
+    wallet_lock.send_tx(draft_id).await
+}
+
+#[tauri::command]
+pub async fn list_unsent_txs(
+    wallet: tauri::State<'_, Mutex<manager::Wallet>>,
+    wallet_name: String,
+) -> Result<HashMap<String, manager::NockchainTxMeta>, String> {
+    let wallet_lock = wallet.lock().await;
+    let loaded_wallet_name = wallet_lock.get_active_wallet();
+    if loaded_wallet_name != Some(wallet_name) {
+        return Err("wallet name mismatch".to_string());
+    }
+    wallet_lock.list_unsent_txs().await
 }
