@@ -44,7 +44,8 @@ impl WalletApp {
             | Commands::ShowSeedphrase
             | Commands::ShowMasterPubkey
             | Commands::ShowMasterPrivkey
-            | Commands::SimpleSpend { .. } => false,
+            | Commands::SimpleSpend { .. }
+            | Commands::AeroeSpend { .. } => false,
 
             // All other commands DO need sync
             _ => true,
@@ -141,6 +142,14 @@ impl WalletApp {
                 gifts,
                 fee,
             } => Wallet::simple_spend(names.clone(), recipients.clone(), gifts.clone(), fee)
+                .map_err(|e| e.to_string())?,
+            Commands::AeroeSpend {
+                names,
+                recipients,
+                gifts,
+                fee,
+                file_path,
+            } => Wallet::aeroe_spend(names.clone(), recipients.clone(), gifts.clone(), fee, file_path)
                 .map_err(|e| e.to_string())?,
             // Sync
             Commands::Scan {

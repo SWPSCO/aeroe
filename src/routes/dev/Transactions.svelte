@@ -21,7 +21,9 @@
             txCreateResult = "No wallet selected";
             return;
         }
-        const res = await wallet.createTx(name, [{ recipient: "0x123", amount: 100 }], 1);
+        const res = await wallet.createTx(name, [
+            { recipient: "2mJCJ8HWBLdqM6yT2fB1HoVndTHK11MTzuj57pmi6srjkwvjwkmsEyZES6STfNL8vczjNucvVZjEXJpDzBaP9ft4c17JZfuZkqADWtKSzWFySCuQPeY6n2etEtzC2bHPSH2Y", amount: 100 }
+        ], 1);
         txCreateResult = res;
     }
 

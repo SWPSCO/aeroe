@@ -39,6 +39,7 @@ pub async fn run() {
             // --- Application Directories ---
             let data_dir: std::path::PathBuf = app.path().app_data_dir().unwrap();
             let wallet_dir = data_dir.join("wallet");
+            let draft_dir = data_dir.join("draft");
             let nockchain_dir = data_dir.join("nockchain");
             let watcher_dir = data_dir.join("watcher");
             let keycrypt_dir = data_dir.join("vault");
@@ -69,7 +70,7 @@ pub async fn run() {
             
             // --- Application State Management ---
             app.manage(Mutex::new(TermsState::new(&app.handle())));
-            app.manage(Mutex::new(manager::Wallet::new(wallet_tx, wallet_dir.clone())));
+            app.manage(Mutex::new(manager::Wallet::new(wallet_tx, wallet_dir.clone(), draft_dir.clone())));
             app.manage(Mutex::new(manager::NockchainNode::new(nockchain_tx)));
             app.manage(Mutex::new(Keycrypt::new(keycrypt_dir)));
             app.manage(Mutex::new(status_receiver_rx));

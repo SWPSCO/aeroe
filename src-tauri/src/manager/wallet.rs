@@ -1,6 +1,6 @@
 use nockapp::noun::slab::NounSlab;
 use nockchain_wallet_lib::Commands;
-use nockvm::noun::{Noun, D};
+use nockvm::noun::Noun;
 
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
@@ -45,7 +45,7 @@ pub struct NockchainTxMeta {
 #[derive(Debug)]
 pub struct NockchainTx {
     metadata: NockchainTxMeta,
-    data: Noun,
+    location: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -58,6 +58,7 @@ pub struct Note {
 #[derive(Debug)]
 pub struct Wallet {
     wallet_dir: PathBuf,
+    draft_dir: PathBuf,
     command_tx: Sender<WalletCommand>,
     wallet_name: Option<String>,
     master_pubkey: Option<String>,
@@ -69,9 +70,10 @@ pub struct Wallet {
 
 impl Wallet {
     // creates new wallet manager
-    pub fn new(command_tx: Sender<WalletCommand>, wallet_dir: PathBuf) -> Self {
+    pub fn new(command_tx: Sender<WalletCommand>, wallet_dir: PathBuf, draft_dir: PathBuf) -> Self {
         Self {
             wallet_dir,
+            draft_dir,
             command_tx,
             wallet_name: None,
             master_pubkey: None,
@@ -196,40 +198,32 @@ impl Wallet {
             .collect::<Vec<String>>()
             .join(",");
 
-        tracing::info!("note_names: {:?}", note_names);
-        tracing::info!("recipients: {:?}", recipients);
-        tracing::info!("gifts: {:?}", gifts);
-        tracing::info!("fee: {:?}", fee);
-
-
-        /*
-        let _ = self.send_command(Commands::SimpleSpend {
-            names: note_names,
-            recipients,
-            gifts,
-            fee,
-        }).await?;
-        */
-        // let (draft_name, draft_jam) = self.process_draft(draft).await?;
-        // save draft to notes
-
-        // temporary - generate random 32 char string
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        std::hash::Hash::hash(&now, &mut hasher);
-        std::hash::Hash::hash(&std::thread::current().id(), &mut hasher);
-        let hash1 = std::hash::Hasher::finish(&hasher);
-        
-        let mut hasher2 = std::collections::hash_map::DefaultHasher::new();
-        std::hash::Hash::hash(&(hash1 ^ 0xdeadbeef), &mut hasher2);
-        let hash2 = std::hash::Hasher::finish(&hasher2);
-        
-        let draft_name = format!("{:016x}{:016x}", hash1, hash2);
-        let draft_jam = D(0);
-        // end temporary
+
+        let draft_name = Self::generate_draft_name(&now);
+
+        // create draft directory
+        let wallet_draft_dir = match self.wallet_name.clone() {
+            Some(wallet_name) => self.draft_dir.join(wallet_name),
+            None => return Err("wallet name is not set".to_string()),
+        };
+        std::fs::create_dir_all(&wallet_draft_dir).map_err(|e| e.to_string())?;
+
+        let draft_file_path = wallet_draft_dir.join(format!("{}.draft", draft_name.clone()));
+        let file_path = draft_file_path.to_str()
+            .ok_or("draft file path contains invalid UTF-8".to_string())?
+            .to_string();
+
+        let _ = self.send_command(Commands::AeroeSpend {
+            names: note_names,
+            recipients,
+            gifts,
+            fee,
+            file_path: file_path.clone(),
+        }).await?;
 
         let draft_id = draft_name.clone();
 
@@ -244,7 +238,7 @@ impl Wallet {
         };
         self.drafts.insert(draft_name.clone(), NockchainTx {
             metadata: draft_meta.clone(),
-            data: draft_jam,
+            location: file_path,
         });
         Ok(draft_meta)
     }
@@ -258,13 +252,10 @@ impl Wallet {
             &draft.data // send in the raw data
         }).await?;
         */
-        // let data = process_draft(signed)
-        // temporary
-        let signed = D(1);
 
         // update the draft
         draft.metadata.status = NockchainTxStatus::Signed;
-        draft.data = signed;
+        draft.location = "placeholder".to_string();
         draft.metadata.signed_at = Some(std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
@@ -419,5 +410,18 @@ impl Wallet {
             .map_err(|_| "invalid noun".to_string())?
             .tail();
         Ok(noun)
+    }
+    fn generate_draft_name(seed: &u128) -> String {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        std::hash::Hash::hash(seed, &mut hasher);
+        std::hash::Hash::hash(&std::thread::current().id(), &mut hasher);
+        let hash1 = std::hash::Hasher::finish(&hasher);
+        
+        let mut hasher2 = std::collections::hash_map::DefaultHasher::new();
+        std::hash::Hash::hash(&(hash1 ^ 0xdeadbeef), &mut hasher2);
+        let hash2 = std::hash::Hasher::finish(&hasher2);
+        
+        let draft_name = format!("{:016x}{:016x}", hash1, hash2);
+        draft_name
     }
 }
