@@ -5168,7 +5168,7 @@ dependencies = [
 [[package]]
 name = "nockchain-wallet-lib"
 version = "0.1.0"
-source = "git+https://github.com/swpsco/nockchain-wallet-lib.git?rev=4686c5c1831984c01b33e88b33ce0e5f4253d447#4686c5c1831984c01b33e88b33ce0e5f4253d447"
+source = "git+https://github.com/swpsco/nockchain-wallet-lib.git?rev=a5f0c07b735a5419392d46a3a7108509abcc24ec#a5f0c07b735a5419392d46a3a7108509abcc24ec"
 dependencies = [
  "bardecoder",
  "clap",

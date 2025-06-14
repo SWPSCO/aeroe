@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use serde_json;
 
 pub struct WalletCommand {
     pub command: Commands,
@@ -47,6 +48,12 @@ pub struct NockchainTx {
     data: Noun,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Note {
+    pub first: String,
+    pub last: String,
+    pub assets: String,
+}
 
 #[derive(Debug)]
 pub struct Wallet {
@@ -141,18 +148,68 @@ impl Wallet {
         }
         // if fee is greater than balance, return error
         let balance = self.get_balance().await?;
-        if fee > balance {
-            return Err("fee is greater than balance".to_string());
-        }
-        // if combined amount of transactions is greater than balance, return error
         let total_amount = transactions.iter().map(|t| t.amount).sum::<u64>();
-        if total_amount > balance {
-            return Err("total amount of transactions is greater than balance".to_string());
+
+        if (fee + total_amount) > balance {
+            return Err("spending amount is greater than balance".to_string());
         }
         // list notes
-        // select appropriate notes
+        let notes = self.peek_notes().await?;
+        // find the lowest number of notes to complete the transaction
+        let required_amount = total_amount + fee;
+        let mut selected_notes = Vec::new();
+        let mut selected_amount = 0u64;
+        
+        // Convert notes to (value, note) pairs and sort by value descending for greedy selection
+        let mut note_values: Vec<(u64, &Note)> = notes.iter()
+            .filter_map(|note| {
+                note.assets.replace(".", "").parse::<u64>().ok().map(|value| (value, note))
+            })
+            .collect();
+        note_values.sort_by(|a, b| b.0.cmp(&a.0)); // Sort descending by value
+        
+        // Greedy selection: pick largest notes first until we have enough
+        for (value, note) in note_values {
+            if selected_amount >= required_amount {
+                break;
+            }
+            selected_notes.push(note);
+            selected_amount += value;
+        }
+        
+        // Check if we have enough funds in available notes
+        if selected_amount < required_amount {
+            return Err("insufficient funds in available notes".to_string());
+        }
+
         // construct simple-spend
-        // let draft = self.send_command(Commands::SimpleSpend { /* simple spend */ }).await?;
+        let note_names = selected_notes.iter()
+            .map(|note| format!("[{} {}]", note.first, note.last))
+            .collect::<Vec<String>>()
+            .join(",");
+        let recipients = transactions.iter()
+            .map(|tx| format!("[1 {}]", tx.recipient))
+            .collect::<Vec<String>>()
+            .join(",");
+        let gifts = transactions.iter()
+            .map(|tx| tx.amount.to_string())
+            .collect::<Vec<String>>()
+            .join(",");
+
+        tracing::info!("note_names: {:?}", note_names);
+        tracing::info!("recipients: {:?}", recipients);
+        tracing::info!("gifts: {:?}", gifts);
+        tracing::info!("fee: {:?}", fee);
+
+
+        /*
+        let _ = self.send_command(Commands::SimpleSpend {
+            names: note_names,
+            recipients,
+            gifts,
+            fee,
+        }).await?;
+        */
         // let (draft_name, draft_jam) = self.process_draft(draft).await?;
         // save draft to notes
 
@@ -297,6 +354,25 @@ impl Wallet {
             .map_err(|e| format!("balance: atom is not a valid i64: {}", e))?;
 
         Ok(balance)
+    }
+    async fn peek_notes(&self) -> Result<Vec<Note>, String> {
+        let result = self.send_command(Commands::PeekNotes).await?;
+        let notes = Self::clean_peek_noun(result)?;
+        let notes_atom = notes
+            .as_atom()
+            .map_err(|_| "notes: notes is not an atom".to_string())?;
+        let notes_bytes = notes_atom.as_ne_bytes();
+        
+        // Trim null bytes and other trailing characters
+        let trimmed_bytes = notes_bytes.iter()
+            .position(|&b| b == 0)
+            .map(|pos| &notes_bytes[..pos])
+            .unwrap_or(notes_bytes);
+        
+        let notes_vec: Vec<Note> = serde_json::from_slice(trimmed_bytes)
+            .map_err(|e| format!("notes: failed to deserialize notes from bytes: {}", e))?;
+        
+        Ok(notes_vec)
     }
     //
     // pokes

@@ -29,6 +29,7 @@ impl WalletApp {
             | Commands::PeekMasterPubkey
             | Commands::PeekState
             | Commands::PeekReceiveAddress
+            | Commands::PeekNotes
             | Commands::Keygen
             | Commands::DeriveChild { .. }
             | Commands::ImportKeys { .. }
@@ -75,6 +76,10 @@ impl WalletApp {
             }
             Commands::PeekPubkeys => {
                 let (noun, _op) = Wallet::peek_pubkeys().map_err(|e| e.to_string())?;
+                return Ok(Self::do_peek(noun, data_dir).await?);
+            }
+            Commands::PeekNotes => {
+                let (noun, _op) = Wallet::peek_notes().map_err(|e| e.to_string())?;
                 return Ok(Self::do_peek(noun, data_dir).await?);
             }
 
