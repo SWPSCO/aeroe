@@ -57,14 +57,13 @@ key-utils = { git = "https://github.com/stratum-mining/stratum.git", rev = "6a48
 roles_logic_sv2 = { git = "https://github.com/stratum-mining/stratum.git", rev = "6a4874d1302327e169cd894dc5a79f52d533dcc9", package = "roles_logic_sv2" }
 
 # nockchain
-nockchain-wallet-lib = { git = "https://github.com/swpsco/nockchain-wallet-lib.git", rev = "cc6e8b4c1dfa6ce3711954d8c2796ffde910e04e" }
-nockchain = { git = "https://github.com/swpsco/nockchain.git", rev = "13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002", package = "nockchain" }
-nockvm = { git = "https://github.com/swpsco/nockchain.git", rev = "13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002", package = "nockvm" }
-nockapp = { git = "https://github.com/swpsco/nockchain.git", rev = "13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002", package = "nockapp" }
-zkvm-jetpack = { git = "https://github.com/swpsco/nockchain.git", rev = "13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002", package = "zkvm-jetpack" }
-nockvm_macros = { git = "https://github.com/swpsco/nockchain.git", rev = "13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002", package = "nockvm_macros" }
-nockchain-bitcoin-sync = { git = "https://github.com/swpsco/nockchain.git", rev = "13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002", package = "nockchain-bitcoin-sync" }
-nockchain-libp2p-io = { git = "https://github.com/swpsco/nockchain.git", rev = "13d2e362ceb2200d3fa76ef32d6b3fa41cd6b002", package = "nockchain-libp2p-io" }
+nockchain-wallet-lib = { git = "https://github.com/swpsco/nockchain-wallet-lib.git", rev = "4686c5c1831984c01b33e88b33ce0e5f4253d447" }
+nockchain = { git = "https://github.com/swpsco/nockchain.git", rev = "e363364a31cb6275f29099699979e5b7ffb645c4", package = "nockchain" }
+nockvm = { git = "https://github.com/swpsco/nockchain.git", rev = "e363364a31cb6275f29099699979e5b7ffb645c4", package = "nockvm" }
+nockapp = { git = "https://github.com/swpsco/nockchain.git", rev = "e363364a31cb6275f29099699979e5b7ffb645c4", package = "nockapp" }
+zkvm-jetpack = { git = "https://github.com/swpsco/nockchain.git", rev = "e363364a31cb6275f29099699979e5b7ffb645c4", package = "zkvm-jetpack" }
+nockvm_macros = { git = "https://github.com/swpsco/nockchain.git", rev = "e363364a31cb6275f29099699979e5b7ffb645c4", package = "nockvm_macros" }
+nockchain-libp2p-io = { git = "https://github.com/swpsco/nockchain.git", rev = "e363364a31cb6275f29099699979e5b7ffb645c4", package = "nockchain-libp2p-io" }
 futures = "0.3.31"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
