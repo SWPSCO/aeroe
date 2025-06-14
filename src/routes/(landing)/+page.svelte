@@ -57,16 +57,18 @@
 		<label class="flex items-center gap-4 cursor-pointer p-4 border-2 border-dark">
 			<input
 				type="checkbox"
-				bind:checked={$onboardingStore.termsAccepted}
 				class="h-6 w-6"
+				checked={$onboardingStore.termsAccepted}
+				on:click={onboardingStore.toggleTerms}
 			/>
 			<span>I have read and agree to the Terms of Use.</span>
 		</label>
 		<label class="mt-2 flex items-center gap-4 cursor-pointer p-4 border-2 border-dark">
 			<input
 				type="checkbox"
-				bind:checked={$onboardingStore.privacyAccepted}
 				class="h-6 w-6"
+				checked={$onboardingStore.privacyAccepted}
+				on:click={onboardingStore.togglePrivacy}
 			/>
 			<span>I have read and agree to the Privacy Policy.</span>
 		</label>
