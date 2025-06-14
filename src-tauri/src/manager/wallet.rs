@@ -243,19 +243,28 @@ impl Wallet {
         Ok(draft_meta)
     }
     pub async fn sign_tx(&mut self, draft_id: String) -> Result<NockchainTxMeta, String> {
+        // First, get the file path and check if draft exists
+        let file_path = {
+            let Some(draft) = self.drafts.get(&draft_id) else {
+                return Err("draft not found".to_string());
+            };
+            draft.location.clone()
+        };
+        
+        let signed_file_path = file_path.replace(".draft", ".signed");
+        // send command to sign the draft
+        let _ = self.send_command(Commands::SignAeroeTx {
+            draft: file_path,
+            index: None,
+            file_path: signed_file_path.clone(),
+        }).await?;
+
+        // Now update the draft
         let Some(draft) = self.drafts.get_mut(&draft_id) else {
             return Err("draft not found".to_string());
         };
-        // send command to sign the draft
-        /*
-        let signed = self.send_command(Commands::SignTx {
-            &draft.data // send in the raw data
-        }).await?;
-        */
-
-        // update the draft
         draft.metadata.status = NockchainTxStatus::Signed;
-        draft.location = "placeholder".to_string();
+        draft.location = signed_file_path;
         draft.metadata.signed_at = Some(std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()

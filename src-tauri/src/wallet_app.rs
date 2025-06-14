@@ -115,6 +115,9 @@ impl WalletApp {
             Commands::SignTx { draft, index } => {
                 Wallet::sign_tx(&draft, index).map_err(|e| e.to_string())?
             }
+            Commands::SignAeroeTx { draft, index, file_path } => {
+                Wallet::sign_aeroe_tx(&draft, index, file_path.clone()).map_err(|e| e.to_string())?
+            }
             Commands::MakeTx { draft } => Wallet::make_tx(&draft).map_err(|e| e.to_string())?,
             Commands::GenMasterPrivkey { seedphrase } => {
                 Wallet::gen_master_privkey(&seedphrase).map_err(|e| e.to_string())?
