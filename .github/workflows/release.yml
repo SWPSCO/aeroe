@@ -335,6 +335,39 @@ jobs:
           projectPath: '.'
           args: ${{ matrix.build_args }}
 
+      # --- BEGIN: Sidecar Verification and Manual Codesign ---
+      - name: List .app bundle contents
+        if: steps.should_build.outputs.skip != 'true'
+        run: |
+          echo "Listing Contents/MacOS in .app bundle:"
+          find src-tauri/target/release/bundle/macos/Aeroe.app/Contents/MacOS -ls
+
+      - name: Fail if sidecar is missing
+        if: steps.should_build.outputs.skip != 'true'
+        run: |
+          if [ ! -f src-tauri/target/release/bundle/macos/Aeroe.app/Contents/MacOS/watcher-${{ matrix.target }} ]; then
+            echo "ERROR: Sidecar binary is missing from the .app bundle!"
+            exit 1
+          fi
+
+      - name: Verify code signature of sidecar
+        if: steps.should_build.outputs.skip != 'true'
+        continue-on-error: true
+        id: verify_sidecar
+        run: |
+          codesign --verify --deep --strict --verbose=2 src-tauri/target/release/bundle/macos/Aeroe.app/Contents/MacOS/watcher-${{ matrix.target }}
+
+      - name: Re-sign sidecar binary (workaround for Tauri CLI bug)
+        if: steps.should_build.outputs.skip != 'true' && steps.verify_sidecar.outcome == 'failure'
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "Re-signing sidecar binary due to failed verification..."
+          codesign -f --timestamp --options runtime --entitlements src-tauri/entitlements/aeroe.entitlements --sign "$APPLE_SIGNING_IDENTITY" --keychain build.keychain src-tauri/target/release/bundle/macos/Aeroe.app/Contents/MacOS/watcher-${{ matrix.target }}
+          codesign --verify --deep --strict --verbose=2 src-tauri/target/release/bundle/macos/Aeroe.app/Contents/MacOS/watcher-${{ matrix.target }}
+      # --- END: Sidecar Verification and Manual Codesign ---
+
       - name: Prepare artifact paths for upload
         if: steps.should_build.outputs.skip != 'true'
         id: prep_artifact_paths
