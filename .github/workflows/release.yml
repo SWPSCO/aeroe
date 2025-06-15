@@ -510,10 +510,20 @@ jobs:
           
           # Install cross-compilation tools for aarch64
           if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
+            # Add aarch64 architecture
+            sudo dpkg --add-architecture arm64
+            sudo apt-get update
+            
+            # Install cross-compilation toolchain
             sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+            
+            # Install aarch64-specific libraries
+            sudo apt-get install -y libssl-dev:arm64 libgtk-3-dev:arm64 libappindicator3-dev:arm64 librsvg2-dev:arm64
+            sudo apt-get install -y libwebkit2gtk-4.1-dev:arm64 libsoup-3.0-dev:arm64
+            
             # Install additional tools needed for vendored OpenSSL compilation
             sudo apt-get install -y perl make
-            echo "Cross-compilation tools installed for aarch64"
+            echo "Cross-compilation tools and libraries installed for aarch64"
           fi
 
       - name: Install Rust stable
@@ -532,6 +542,15 @@ jobs:
           echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
           echo "PKG_CONFIG_ALLOW_SYSTEM_CFLAGS=1" >> $GITHUB_ENV
           echo "PKG_CONFIG_ALLOW_SYSTEM_LIBS=1" >> $GITHUB_ENV
+          
+          # Set up PKG_CONFIG for cross-compilation
+          echo "PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig" >> $GITHUB_ENV
+          echo "PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig:/usr/share/pkgconfig" >> $GITHUB_ENV
+          
+          # OpenSSL configuration for cross-compilation
+          echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=/usr/lib/aarch64-linux-gnu" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=/usr/include" >> $GITHUB_ENV
 
       - name: Rust Cache
         if: steps.should_build.outputs.skip != 'true'
@@ -558,9 +577,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # Force vendored OpenSSL for aarch64 cross-compilation
-          OPENSSL_STATIC: ${{ matrix.target == 'aarch64-unknown-linux-gnu' && '1' || '' }}
-          OPENSSL_VENDORED: ${{ matrix.target == 'aarch64-unknown-linux-gnu' && '1' || '' }}
         with:
           projectPath: '.'
           args: ${{ matrix.build_args }}
@@ -642,7 +658,7 @@ jobs:
   publish_release:
     name: Publish GitHub Release
     needs: [update_version, build_macos_bundles, build_linux_bundles]
-    if: always() && (needs.update_version.result == 'success') && ((needs.build_macos_bundles.result == 'success' || needs.build_macos_bundles.result == 'skipped') || (needs.build_linux_bundles.result == 'success' || needs.build_linux_bundles.result == 'skipped'))
+    if: always() && (needs.update_version.result == 'success') && ((needs.build_macos_bundles.result == 'success' || needs.build_macos_bundles.result == 'skipped') && (needs.build_linux_bundles.result == 'success' || needs.build_linux_bundles.result == 'skipped'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
