@@ -33,7 +33,7 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "entitlements": "entitlements/aeroe.entitlements"
+      "entitlements": "./Entitlements.plist"
     },
     "externalBin": [
       "bin/watcher"
