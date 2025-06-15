@@ -29,6 +29,7 @@ on:
         required: false
         default: true
         type: boolean
+
 jobs:
   update_version:
     name: Update App Version
@@ -184,29 +185,44 @@ jobs:
             os_name: "macOS-aarch64"
             watcher_binary: "watcher-macos-aarch64"
             arch: "aarch64"
-        exclude:
-          - arch: ${{ !inputs.build_macos_x64 && 'x64' || 'never' }}
-          - arch: ${{ !inputs.build_macos_aarch64 && 'aarch64' || 'never' }}
     runs-on: ${{ matrix.platform }}
     steps:
+      - name: Check if this architecture should be built
+        id: should_build
+        run: |
+          if [[ "${{ matrix.arch }}" == "x64" && "${{ inputs.build_macos_x64 }}" == "false" ]]; then
+            echo "Skipping macOS x64 build as it's not selected"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.arch }}" == "aarch64" && "${{ inputs.build_macos_aarch64 }}" == "false" ]]; then
+            echo "Skipping macOS aarch64 build as it's not selected"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "Building ${{ matrix.arch }} as requested"
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout code at specific tag
+        if: steps.should_build.outputs.skip != 'true'
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
 
       - name: Download tauri.conf.json
+        if: steps.should_build.outputs.skip != 'true'
         uses: actions/download-artifact@v4
         with:
           name: tauri-config-json
           path: src-tauri
 
       - name: Download watcher binaries
+        if: steps.should_build.outputs.skip != 'true'
         uses: actions/download-artifact@v4
         with:
           name: watcher-binaries
           path: watcher-binaries
 
       - name: Replace watcher binary with architecture-specific version
+        if: steps.should_build.outputs.skip != 'true'
         run: |
           echo "Replacing watcher binary with ${{ matrix.watcher_binary }}"
           if [ -f "watcher-binaries/${{ matrix.watcher_binary }}" ]; then
@@ -223,19 +239,21 @@ jobs:
           fi
 
       - name: Setup Node.js
+        if: steps.should_build.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: 'yarn'
 
       - name: Install Rust stable
+        if: steps.should_build.outputs.skip != 'true'
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
           targets: ${{ matrix.target }}
 
       - name: Import Apple Developer Certificate
-        if: runner.os == 'macOS'
+        if: steps.should_build.outputs.skip != 'true' && runner.os == 'macOS'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -251,25 +269,28 @@ jobs:
           rm certificate.p12
 
       - name: Ensure x86_64-apple-darwin target is installed for macOS x86_64 build
-        if: matrix.target == 'x86_64-apple-darwin' && matrix.platform == 'macos-latest'
+        if: steps.should_build.outputs.skip != 'true' && matrix.target == 'x86_64-apple-darwin' && matrix.platform == 'macos-latest'
         run: rustup target add x86_64-apple-darwin
 
       - name: Rust Cache
+        if: steps.should_build.outputs.skip != 'true'
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
       - name: Install frontend dependencies (yarn)
+        if: steps.should_build.outputs.skip != 'true'
         run: yarn install
 
       - name: Create .env file
+        if: steps.should_build.outputs.skip != 'true'
         run: |
           echo "PUBLIC_AEROE_DEV_PAGE=false" > .env
           echo "Created .env file:"
           cat .env
 
       - name: Create API Key file for Notarization
-        if: ${{ inputs.notarize }}
+        if: steps.should_build.outputs.skip != 'true' && inputs.notarize
         env:
           APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_P8 }}
         run: |
@@ -285,7 +306,7 @@ jobs:
           fi
 
       - name: Build Tauri app (with notarization)
-        if: ${{ inputs.notarize }}
+        if: steps.should_build.outputs.skip != 'true' && inputs.notarize
         uses: tauri-apps/tauri-action@v0.5.6
         id: tauri_build_notarized
         env:
@@ -301,7 +322,7 @@ jobs:
           args: ${{ matrix.build_args }}
 
       - name: Build Tauri app (without notarization)
-        if: ${{ !inputs.notarize }}
+        if: steps.should_build.outputs.skip != 'true' && !inputs.notarize
         uses: tauri-apps/tauri-action@v0.5.6
         id: tauri_build_unsigned
         env:
@@ -314,6 +335,7 @@ jobs:
           args: ${{ matrix.build_args }}
 
       - name: Prepare artifact paths for upload
+        if: steps.should_build.outputs.skip != 'true'
         id: prep_artifact_paths
         shell: bash
         run: |
@@ -383,6 +405,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Upload Build Artifacts
+        if: steps.should_build.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os_name }}-${{ needs.update_version.outputs.app_version }}
@@ -416,29 +439,44 @@ jobs:
             os_name: "Linux-aarch64"
             watcher_binary: "watcher-linux-aarch64"
             arch: "aarch64"
-        exclude:
-          - arch: ${{ !inputs.build_linux_x64 && 'x64' || 'never' }}
-          - arch: ${{ !inputs.build_linux_aarch64 && 'aarch64' || 'never' }}
     runs-on: ${{ matrix.platform }}
     steps:
+      - name: Check if this architecture should be built
+        id: should_build
+        run: |
+          if [[ "${{ matrix.arch }}" == "x64" && "${{ inputs.build_linux_x64 }}" == "false" ]]; then
+            echo "Skipping Linux x64 build as it's not selected"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.arch }}" == "aarch64" && "${{ inputs.build_linux_aarch64 }}" == "false" ]]; then
+            echo "Skipping Linux aarch64 build as it's not selected"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "Building ${{ matrix.arch }} as requested"
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout code at specific tag
+        if: steps.should_build.outputs.skip != 'true'
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
 
       - name: Download tauri.conf.json
+        if: steps.should_build.outputs.skip != 'true'
         uses: actions/download-artifact@v4
         with:
           name: tauri-config-json
           path: src-tauri
 
       - name: Download watcher binaries
+        if: steps.should_build.outputs.skip != 'true'
         uses: actions/download-artifact@v4
         with:
           name: watcher-binaries
           path: watcher-binaries
 
       - name: Replace watcher binary with architecture-specific version
+        if: steps.should_build.outputs.skip != 'true'
         run: |
           echo "Replacing watcher binary with ${{ matrix.watcher_binary }}"
           if [ -f "watcher-binaries/${{ matrix.watcher_binary }}" ]; then
@@ -455,13 +493,14 @@ jobs:
           fi
 
       - name: Setup Node.js
+        if: steps.should_build.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: 'yarn'
 
       - name: Install Linux dependencies
-        if: runner.os == 'Linux'
+        if: steps.should_build.outputs.skip != 'true' && runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential curl wget file libssl-dev libgtk-3-dev libappindicator3-dev librsvg2-dev
@@ -480,13 +519,14 @@ jobs:
           fi
 
       - name: Install Rust stable
+        if: steps.should_build.outputs.skip != 'true'
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
           targets: ${{ matrix.target }}
 
       - name: Configure cross-compilation for Linux aarch64
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        if: steps.should_build.outputs.skip != 'true' && matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
           echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
@@ -496,20 +536,24 @@ jobs:
           echo "PKG_CONFIG_SYSROOT_DIR=/usr/aarch64-linux-gnu" >> $GITHUB_ENV
 
       - name: Rust Cache
+        if: steps.should_build.outputs.skip != 'true'
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
       - name: Install frontend dependencies (yarn)
+        if: steps.should_build.outputs.skip != 'true'
         run: yarn install
 
       - name: Create .env file
+        if: steps.should_build.outputs.skip != 'true'
         run: |
           echo "PUBLIC_AEROE_DEV_PAGE=false" > .env
           echo "Created .env file:"
           cat .env
 
       - name: Build Tauri app
+        if: steps.should_build.outputs.skip != 'true'
         uses: tauri-apps/tauri-action@v0.5.6
         id: tauri_build
         env:
@@ -521,6 +565,7 @@ jobs:
           args: ${{ matrix.build_args }}
 
       - name: Prepare artifact paths for upload
+        if: steps.should_build.outputs.skip != 'true'
         id: prep_artifact_paths
         shell: bash
         run: |
@@ -586,6 +631,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Upload Build Artifacts
+        if: steps.should_build.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os_name }}-${{ needs.update_version.outputs.app_version }}
@@ -624,23 +670,6 @@ jobs:
           echo ""
           echo "Files matching sig pattern:"
           find artifacts -name "*.tar.gz.sig" -type f || echo "No sig files found"
-
-      - name: Prepare release (create empty release first to avoid race conditions)
-        uses: softprops/action-gh-release@v2.0.8
-        continue-on-error: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          body: |
-            Automated release for ${{ github.ref_name }}
-
-            **Assets:**
-            Release assets are being uploaded...
-          draft: false
-          # disabled prerelease for now, we want everything to be a proper release
-          # prerelease: ${{ contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}
 
       - name: Create Tauri Updater Static JSON
         run: |
