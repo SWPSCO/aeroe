@@ -1,5 +1,5 @@
 # Workflow name displayed on GitHub
-name: Self-Hosted release workflow
+name: Release workflow (incl selfhosted)
 
 on:
   workflow_dispatch:
@@ -26,6 +26,11 @@ on:
         type: boolean
       build_linux_aarch64:
         description: 'Build Linux aarch64'
+        required: false
+        default: false
+        type: boolean
+      use_github_hosted_macos:
+        description: 'Use GitHub-hosted macOS runners instead of self-hosted'
         required: false
         default: false
         type: boolean
@@ -186,7 +191,7 @@ jobs:
             watcher_binary: "watcher-macos-aarch64"
             arch: "aarch64"
             runner_type: "self-hosted"
-    runs-on: ${{ matrix.platform }}
+    runs-on: ${{ inputs.use_github_hosted_macos && 'macos-latest' || (matrix.arch == 'aarch64' && fromJSON('["self-hosted", "macOS", "ARM64"]') || 'macos-latest') }}
     steps:
       - name: Check if this architecture should be built
         id: should_build
@@ -202,6 +207,15 @@ jobs:
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Display runner info
+        if: steps.should_build.outputs.skip != 'true'
+        run: |
+          echo "🖥️  Runner type: ${{ inputs.use_github_hosted_macos && 'GitHub-hosted' || 'Self-hosted' }}"
+          echo "🏗️  Architecture: ${{ matrix.arch }}"
+          echo "💻 System info:"
+          uname -a
+          echo "🔧 Build target: ${{ matrix.target }}"
+
       - name: Checkout code at specific tag
         if: steps.should_build.outputs.skip != 'true'
         uses: actions/checkout@v4
@@ -209,7 +223,7 @@ jobs:
           ref: ${{ github.ref }}
 
       - name: Clean workspace for self-hosted runner
-        if: steps.should_build.outputs.skip != 'true' && runner.os == 'macOS' && matrix.arch == 'aarch64'
+        if: steps.should_build.outputs.skip != 'true' && !inputs.use_github_hosted_macos && matrix.arch == 'aarch64'
         run: |
           # Clean node_modules and cargo cache to prevent conflicts
           rm -rf node_modules yarn.lock package-lock.json || true

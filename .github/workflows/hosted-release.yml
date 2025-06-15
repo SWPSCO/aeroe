@@ -1,5 +1,5 @@
 # Workflow name displayed on GitHub
-name: Release Workflow
+name: Original Release Workflow
 
 on:
   workflow_dispatch:
@@ -386,7 +386,7 @@ jobs:
           codesign -f --timestamp --options runtime \
             --entitlements src-tauri/Entitlements.plist \
             --sign "$APPLE_SIGNING_IDENTITY" \
-            --keychain "$KEYCHAIN_NAME" \
+            --keychain build.keychain \
             src-tauri/target/${{ matrix.target }}/release/bundle/macos/Aeroe.app/Contents/MacOS/aeroe
           
           echo "Verifying entitlements on main binary:"
