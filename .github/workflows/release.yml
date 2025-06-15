@@ -511,6 +511,8 @@ jobs:
           # Install cross-compilation tools for aarch64
           if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
             sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+            # Install additional tools needed for vendored OpenSSL compilation
+            sudo apt-get install -y perl make
             echo "Cross-compilation tools installed for aarch64"
           fi
 
@@ -530,10 +532,6 @@ jobs:
           echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
           echo "PKG_CONFIG_ALLOW_SYSTEM_CFLAGS=1" >> $GITHUB_ENV
           echo "PKG_CONFIG_ALLOW_SYSTEM_LIBS=1" >> $GITHUB_ENV
-          
-          # Use vendored OpenSSL for cross-compilation to avoid header issues
-          echo "OPENSSL_STATIC=1" >> $GITHUB_ENV
-          echo "OPENSSL_VENDORED=1" >> $GITHUB_ENV
 
       - name: Rust Cache
         if: steps.should_build.outputs.skip != 'true'
@@ -560,6 +558,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Force vendored OpenSSL for aarch64 cross-compilation
+          OPENSSL_STATIC: ${{ matrix.target == 'aarch64-unknown-linux-gnu' && '1' || '' }}
+          OPENSSL_VENDORED: ${{ matrix.target == 'aarch64-unknown-linux-gnu' && '1' || '' }}
         with:
           projectPath: '.'
           args: ${{ matrix.build_args }}
