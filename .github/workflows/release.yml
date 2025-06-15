@@ -176,16 +176,17 @@ jobs:
             build_args: "--target x86_64-apple-darwin"
             os_name: "macOS-x86_64"
             watcher_binary: "watcher-macos-x64"
-            enabled: ${{ inputs.build_macos_x64 }}
+            arch: "x64"
           - platform: macos-latest
             target: aarch64-apple-darwin
             artifact_bundle_extension: ".app"
             build_args: "--target aarch64-apple-darwin"
             os_name: "macOS-aarch64"
             watcher_binary: "watcher-macos-aarch64"
-            enabled: ${{ inputs.build_macos_aarch64 }}
+            arch: "aarch64"
         exclude:
-          - enabled: false
+          - arch: ${{ !inputs.build_macos_x64 && 'x64' || 'never' }}
+          - arch: ${{ !inputs.build_macos_aarch64 && 'aarch64' || 'never' }}
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout code at specific tag
@@ -407,16 +408,17 @@ jobs:
             build_args: "--target x86_64-unknown-linux-gnu"
             os_name: "Linux-x86_64"
             watcher_binary: "watcher-linux-x64"
-            enabled: ${{ inputs.build_linux_x64 }}
+            arch: "x64"
           - platform: ubuntu-22.04
             target: aarch64-unknown-linux-gnu
             artifact_bundle_extension: ".AppImage"
             build_args: "--target aarch64-unknown-linux-gnu"
             os_name: "Linux-aarch64"
             watcher_binary: "watcher-linux-aarch64"
-            enabled: ${{ inputs.build_linux_aarch64 }}
+            arch: "aarch64"
         exclude:
-          - enabled: false
+          - arch: ${{ !inputs.build_linux_x64 && 'x64' || 'never' }}
+          - arch: ${{ !inputs.build_linux_aarch64 && 'aarch64' || 'never' }}
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout code at specific tag
