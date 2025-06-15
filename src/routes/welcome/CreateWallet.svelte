@@ -36,7 +36,7 @@
 				type="text"
 				bind:value={walletName}
 				placeholder="Wallet Name"
-				class="p-2 border border-dark text-center font-title w-full max-w-xs"
+				class="p-2 border border-dark text-center font-title w-full max-w-xs focus:ring-1 focus:ring-highlight-orange focus:border-highlight-orange"
 			/>
 			<Button onclick={() => welcomeStore.createWallet(walletName)}>
 				Create & Open Wallet

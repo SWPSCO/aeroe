@@ -17,7 +17,7 @@
 			<input
 				type="password"
 				bind:value={password}
-				class="text-lg font-title text-dark border border-dark p-3 text-center w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+				class="text-lg font-title text-dark border border-dark p-3 text-center w-full focus:ring-1 focus:ring-highlight-orange focus:border-highlight-orange"
 				placeholder="Password"
 				aria-label="Password"
 				onkeydown={(e) => e.key === 'Enter' && loginStore.login(password)}

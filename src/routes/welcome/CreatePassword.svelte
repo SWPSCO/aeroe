@@ -37,7 +37,7 @@
 				type="password"
 				bind:value={password}
 				placeholder="Password (min. 8 characters)"
-				class="p-4 text-lg font-title text-dark border border-dark text-center"
+				class="p-4 text-lg font-title text-dark border border-dark text-center focus:ring-1 focus:ring-highlight-orange focus:border-highlight-orange"
 				onkeydown={(e) => {
 					if (e.key === 'Enter') handleSubmit();
 				}}
@@ -46,7 +46,7 @@
 				type="password"
 				bind:value={confirmPassword}
 				placeholder="Confirm Password"
-				class="p-4 text-lg font-title text-dark border border-dark text-center"
+				class="p-4 text-lg font-title text-dark border border-dark text-center focus:ring-1 focus:ring-highlight-orange focus:border-highlight-orange"
 				onkeydown={(e) => {
 					if (e.key === 'Enter') handleSubmit();
 				}}

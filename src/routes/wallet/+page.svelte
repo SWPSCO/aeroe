@@ -1,16 +1,28 @@
 <script lang="ts">
     import { walletStore } from '$lib/stores/wallet';
+    import { sessionStore } from '$lib/stores/session';
 	import TransactionList from '$lib/components/wallet/TransactionList.svelte';
 	import SendForm from '$lib/components/wallet/SendForm.svelte';
 	import QrCode from '$lib/components/wallet/QrCode.svelte';
 
 	let showSendForm = false;
 	let showReceive = false;
+
+	// Derived values for template to satisfy TypeScript
+	$: activeWalletName = $sessionStore.activeWalletName;
 </script>
 
 <div class="w-full flex flex-col gap-8 p-8">
 	{#if $walletStore.balance}
 		<div class="px-8 pt-8 pb-4">
+			<!-- Wallet identity -->
+			<div class="flex flex-col items-center mb-6">
+				<div class="font-title text-lg text-dark">{activeWalletName}</div>
+				{#if $walletStore.masterPubkey}
+					<div class="text-xs font-mono text-dark break-all max-w-full text-center">{$walletStore.masterPubkey}</div>
+				{/if}
+			</div>
+
 			<div class="uppercase font-title text-dark text-sm">Total Assets Value</div>
 			<div class="flex items-end gap-2 mt-2">
 				<div class="text-4xl text-highlight-orange font-bold">
