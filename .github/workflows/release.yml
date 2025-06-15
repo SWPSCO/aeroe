@@ -109,15 +109,19 @@ jobs:
           for zip_file in *.zip; do
             echo "Extracting $zip_file..."
             unzip -j "$zip_file" -d .
-            # Rename extracted binary to include architecture
+            
+            # Get the binary name (same as zip file without .zip extension)
+            binary_name="${zip_file%.zip}"
+            
+            # Rename extracted binary to standardized format
             if [[ "$zip_file" == "macos_aarch64"* ]]; then
-              mv watcher watcher-macos-aarch64
+              mv "$binary_name" watcher-macos-aarch64
             elif [[ "$zip_file" == "macos_x64"* ]]; then
-              mv watcher watcher-macos-x64
+              mv "$binary_name" watcher-macos-x64
             elif [[ "$zip_file" == "linux_aarch64"* ]]; then
-              mv watcher watcher-linux-aarch64
+              mv "$binary_name" watcher-linux-aarch64
             elif [[ "$zip_file" == "linux_x64"* ]]; then
-              mv watcher watcher-linux-x64
+              mv "$binary_name" watcher-linux-x64
             fi
           done
           
