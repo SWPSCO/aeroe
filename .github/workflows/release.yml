@@ -398,7 +398,7 @@ jobs:
         run: |
           echo "Re-signing main app binary with JIT entitlements..."
           codesign -f --timestamp --options runtime \
-            --entitlements src-tauri/entitlements/aeroe.entitlements \
+            --entitlements src-tauri/Entitlements.plist \
             --sign "$APPLE_SIGNING_IDENTITY" \
             --keychain "$KEYCHAIN_NAME" \
             src-tauri/target/${{ matrix.target }}/release/bundle/macos/Aeroe.app/Contents/MacOS/aeroe
