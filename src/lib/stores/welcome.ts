@@ -1,5 +1,5 @@
 import { writable, get } from 'svelte/store';
-import { vault, wallet as walletService } from '$lib/services/tauri';
+import { vault, wallet as walletService } from '$lib/services';
 import { mainStore } from './main';
 
 export type WizardStep =

@@ -25,9 +25,9 @@ export interface NockchainTxMeta {
   draftId: string;
   transactions: { recipient: string, amount: number }[];
   fee: number;
-  created_at: string;
-  signed_at: string | null;
-  broadcasted_at: string | null;
+  createdAt: string;
+  signedAt: string | null;
+  broadcastedAt: string | null;
   status: 'draft' | 'signed' | 'pending';
 }
 

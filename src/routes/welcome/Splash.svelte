@@ -1,6 +1,7 @@
-<script>
-    import { createEventDispatcher } from "svelte";
-    const dispatch = createEventDispatcher();
+<script lang="ts">
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher();
 </script>
 <div class="flex flex-col items-center justify-center gap-4">
     <h1 class="text-4xl font-title">Welcome to <span class="text-highlight-orange">AEROE</span></h1>

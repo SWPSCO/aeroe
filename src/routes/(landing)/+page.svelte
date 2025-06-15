@@ -8,44 +8,77 @@
     import { PUBLIC_AEROE_DEV_PAGE } from '$env/static/public';
     import { goto } from '$app/navigation';
     // End Dev
+    
+    $: allAccepted = $onboardingStore.termsAccepted && $onboardingStore.privacyAccepted;
+
     onMount(() => {
         // Dev
         if (PUBLIC_AEROE_DEV_PAGE === 'true') {
             goto("/dev");
         }
         // End Dev
-        onboardingStore.checkStatus();
     });
 </script>
 
-{#if $onboardingStore.error}
-    <div class="m-8">
-        <div class="font-title text-xl bg-red-500 text-white p-8">
-            Error: {$onboardingStore.error}
-        </div>
-    </div>
-{:else if !$onboardingStore.termsAccepted || !$onboardingStore.privacyAccepted}
-    <div class="m-8">
-        <div class="font-title text-md w-full p-2 border-2 border-dark text-center">
-            {$onboardingStore.termsAccepted ? "Privacy Policy" : "Terms of Use"}
-        </div>
-        <div class="w-full overflow-y-auto p-4 font-title border-2 border-dark border-t-0 h-[680px] flex flex-col gap-4"> 
-            {#if $onboardingStore.termsAccepted}
-                <PrivacyPolicy />
-            {:else}
-                <Terms />
-            {/if}
-        </div>
-        <button 
-            class="border-2 border-dark w-full p-4 mt-2 font-title bg-dark text-white cursor-pointer" 
-            onclick={() => { $onboardingStore.termsAccepted ? onboardingStore.acceptPrivacy() : onboardingStore.acceptTerms() }}
-        >
-            Accept
-        </button>
-    </div>
-{:else}
-    <!-- Both accepted, the store is handling navigation. Show a loading state. -->
-    <div class="flex justify-center items-center h-screen">
-        <div class="animate-pulse text-2xl font-title">Loading...</div>
-    </div>
-{/if}
+<div class="m-8 flex flex-col h-[calc(100vh-4rem)]">
+	{#if $onboardingStore.error}
+		<div class="font-title text-xl bg-red-500 text-white p-8">
+			Error: {$onboardingStore.error}
+		</div>
+	{/if}
+
+	<h1 class="font-title text-2xl text-center mb-4">Welcome to Aeroe</h1>
+	<p class="text-center mb-6">Before you get started, please review and accept the following:</p>
+
+	<div class="flex-grow flex flex-col gap-4 overflow-hidden">
+		<!-- Terms of Use -->
+		<div class="flex flex-col border-2 border-dark flex-1 overflow-hidden">
+			<h2 class="font-title text-md w-full p-2 border-b-2 border-dark text-center">
+				Terms of Use
+			</h2>
+			<div class="overflow-y-auto p-4 font-body">
+				<Terms />
+			</div>
+		</div>
+
+		<!-- Privacy Policy -->
+		<div class="flex flex-col border-2 border-dark flex-1 overflow-hidden">
+			<h2 class="font-title text-md w-full p-2 border-b-2 border-dark text-center">
+				Privacy Policy
+			</h2>
+			<div class="overflow-y-auto p-4 font-body">
+				<PrivacyPolicy />
+			</div>
+		</div>
+	</div>
+
+	<!-- Acceptance -->
+	<div class="mt-6 flex-shrink-0">
+		<label class="flex items-center gap-4 cursor-pointer p-4 border-2 border-dark">
+			<input
+				type="checkbox"
+				class="h-6 w-6"
+				checked={$onboardingStore.termsAccepted}
+				on:click={onboardingStore.toggleTerms}
+			/>
+			<span>I have read and agree to the Terms of Use.</span>
+		</label>
+		<label class="mt-2 flex items-center gap-4 cursor-pointer p-4 border-2 border-dark">
+			<input
+				type="checkbox"
+				class="h-6 w-6"
+				checked={$onboardingStore.privacyAccepted}
+				on:click={onboardingStore.togglePrivacy}
+			/>
+			<span>I have read and agree to the Privacy Policy.</span>
+		</label>
+
+		<button
+			class="border-2 border-dark w-full p-4 mt-4 font-title bg-dark text-white disabled:bg-medium disabled:cursor-not-allowed"
+			disabled={!allAccepted}
+			on:click={onboardingStore.submit}
+		>
+			Accept and Continue
+		</button>
+	</div>
+</div>

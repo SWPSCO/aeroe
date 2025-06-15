@@ -1,6 +1,6 @@
-import { writable, get } from 'svelte/store';
-import { terms as termsService } from '$lib/services/tauri';
+import { writable } from 'svelte/store';
 import { mainStore } from './main';
+import { terms } from '$lib/services';
 
 interface OnboardingState {
     termsAccepted: boolean;
@@ -14,48 +14,31 @@ function createOnboardingStore() {
         privacyAccepted: false,
         error: null,
     });
-    const { subscribe, update, set } = store;
+    const { subscribe, update } = store;
 
-    async function checkStatus() {
-        const termsRes = await termsService.isTermsAccepted();
-        const privacyRes = await termsService.isPrivacyAccepted();
-
-        if (termsRes.success && privacyRes.success) {
-            update(s => ({
-                ...s,
-                termsAccepted: termsRes.data ?? false,
-                privacyAccepted: privacyRes.data ?? false,
-            }));
-        } else {
-            update(s => ({ ...s, error: 'Failed to check terms status.' }));
-        }
+    function toggleTerms() {
+        update(s => ({ ...s, termsAccepted: !s.termsAccepted, error: null }));
     }
 
-    async function acceptTerms() {
-        const res = await termsService.setTermsAccepted();
-        if (res.success) {
-            await checkStatus();
-        } else {
-            update(s => ({...s, error: 'Failed to accept terms.'}));
-        }
+    function togglePrivacy() {
+        update(s => ({ ...s, privacyAccepted: !s.privacyAccepted, error: null }));
     }
 
-    async function acceptPrivacy() {
-        const res = await termsService.setPrivacyAccepted();
-        if (res.success) {
-            // Privacy is the last step. After accepting,
-            // we transition to the welcome flow to create a wallet.
+    async function submit() {
+        try {
+            await terms.setTermsAccepted();
+            await terms.setPrivacyAccepted();
             mainStore.completeOnboarding();
-        } else {
-            update(s => ({...s, error: 'Failed to accept privacy policy.'}));
+        } catch (e: any) {
+            update(s => ({ ...s, error: e.message || 'An unknown error occurred.'}))
         }
     }
 
     return {
         subscribe,
-        checkStatus,
-        acceptTerms,
-        acceptPrivacy,
+        toggleTerms,
+        togglePrivacy,
+        submit,
     }
 }
 
