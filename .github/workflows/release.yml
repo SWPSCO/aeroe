@@ -336,11 +336,19 @@ jobs:
           args: ${{ matrix.build_args }}
 
       # --- BEGIN: Sidecar Verification and Manual Codesign ---
-      - name: List .app bundle contents
-        if: steps.should_build.outputs.skip != 'true'
+      - name: Debug: List all files in bundle directory
+        run: |
+          echo "Listing all files in src-tauri/target/release/bundle/macos:"
+          ls -lR src-tauri/target/release/bundle/macos || echo "Directory does not exist"
+
+      - name: List .app Contents/MacOS (non-fatal)
         run: |
           echo "Listing Contents/MacOS in .app bundle:"
-          find src-tauri/target/release/bundle/macos/Aeroe.app/Contents/MacOS -ls
+          if [ -d src-tauri/target/release/bundle/macos/Aeroe.app/Contents/MacOS ]; then
+            find src-tauri/target/release/bundle/macos/Aeroe.app/Contents/MacOS -ls
+          else
+            echo "Directory not found!"
+          fi
 
       - name: Fail if sidecar is missing
         if: steps.should_build.outputs.skip != 'true'
