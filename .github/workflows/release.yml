@@ -27,7 +27,7 @@ on:
       build_linux_aarch64:
         description: 'Build Linux aarch64'
         required: false
-        default: true
+        default: false
         type: boolean
 
 jobs:
