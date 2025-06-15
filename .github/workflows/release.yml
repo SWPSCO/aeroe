@@ -281,22 +281,47 @@ jobs:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         run: |
           echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
           
           # Use unique keychain name for self-hosted runners
           KEYCHAIN_NAME="build-${{ github.run_id }}.keychain"
+          
+          # Clean up any existing keychain
           security delete-keychain "$KEYCHAIN_NAME" 2>/dev/null || true
           
+          # Create and configure keychain
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
-          security default-keychain -s "$KEYCHAIN_NAME"
+          security list-keychains -d user -s "$KEYCHAIN_NAME" $(security list-keychains -d user | sed s/\"//g)
+          security set-keychain-settings -t 3600 -l "$KEYCHAIN_NAME"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
-          security set-keychain-settings -t 3600 -u "$KEYCHAIN_NAME"
-          security import certificate.p12 -k "$KEYCHAIN_NAME" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
-          rm certificate.p12
           
+          # Import certificate
+          security import certificate.p12 -k "$KEYCHAIN_NAME" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign:,security: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
+          
+          # Verify the identity is available
+          security find-identity -v -p codesigning "$KEYCHAIN_NAME"
+          
+          # Set as default for this session
+          security default-keychain -s "$KEYCHAIN_NAME"
+          
+          rm certificate.p12
           echo "KEYCHAIN_NAME=$KEYCHAIN_NAME" >> $GITHUB_ENV
+
+      - name: Debug keychain and signing
+        if: steps.should_build.outputs.skip != 'true' && runner.os == 'macOS'
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "=== Keychain Debug ==="
+          echo "KEYCHAIN_NAME: $KEYCHAIN_NAME"
+          security list-keychains
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_NAME"
+          security find-identity -v "$KEYCHAIN_NAME"
+          echo "=== Codesign identities ==="
+          security find-identity -v -p codesigning
 
       - name: Ensure x86_64-apple-darwin target is installed for macOS x86_64 build
         if: steps.should_build.outputs.skip != 'true' && matrix.target == 'x86_64-apple-darwin' && matrix.platform == 'macos-latest'
@@ -335,6 +360,12 @@ jobs:
             echo "APPLE_API_KEY_PATH=" >> $GITHUB_ENV 
           fi
 
+      - name: Set signing environment for Tauri
+        if: steps.should_build.outputs.skip != 'true' && runner.os == 'macOS'
+        run: |
+          echo "Setting up signing environment for Tauri..."
+          echo "OTHER_CODE_SIGN_FLAGS=--keychain $KEYCHAIN_NAME" >> $GITHUB_ENV
+
       - name: Build Tauri app (with notarization)
         if: steps.should_build.outputs.skip != 'true' && inputs.notarize
         uses: tauri-apps/tauri-action@v0.5.6
@@ -347,6 +378,7 @@ jobs:
           APPLE_API_KEY_PATH: ${{ env.APPLE_API_KEY_PATH }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          OTHER_CODE_SIGN_FLAGS: --keychain ${{ env.KEYCHAIN_NAME }}
         with:
           projectPath: '.'
           args: ${{ matrix.build_args }}
@@ -360,6 +392,7 @@ jobs:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          OTHER_CODE_SIGN_FLAGS: --keychain ${{ env.KEYCHAIN_NAME }}
         with:
           projectPath: '.'
           args: ${{ matrix.build_args }}
@@ -401,7 +434,7 @@ jobs:
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
           echo "Re-signing sidecar binary due to failed verification..."
-          codesign -f --timestamp --options runtime --entitlements src-tauri/entitlements/aeroe.entitlements --sign "$APPLE_SIGNING_IDENTITY" --keychain "$KEYCHAIN_NAME" src-tauri/target/${{ matrix.target }}/release/bundle/macos/Aeroe.app/Contents/MacOS/watcher
+          codesign -f --timestamp --options runtime --entitlements src-tauri/Entitlements.plist --sign "$APPLE_SIGNING_IDENTITY" --keychain "$KEYCHAIN_NAME" src-tauri/target/${{ matrix.target }}/release/bundle/macos/Aeroe.app/Contents/MacOS/watcher
           codesign --verify --deep --strict --verbose=2 src-tauri/target/${{ matrix.target }}/release/bundle/macos/Aeroe.app/Contents/MacOS/watcher
     # just to be sure
       - name: Re-sign main app binary with JIT entitlements
