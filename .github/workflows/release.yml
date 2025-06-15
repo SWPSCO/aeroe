@@ -374,6 +374,22 @@ jobs:
           echo "Re-signing sidecar binary due to failed verification..."
           codesign -f --timestamp --options runtime --entitlements src-tauri/entitlements/aeroe.entitlements --sign "$APPLE_SIGNING_IDENTITY" --keychain build.keychain src-tauri/target/${{ matrix.target }}/release/bundle/macos/Aeroe.app/Contents/MacOS/watcher
           codesign --verify --deep --strict --verbose=2 src-tauri/target/${{ matrix.target }}/release/bundle/macos/Aeroe.app/Contents/MacOS/watcher
+    # just to be sure
+      - name: Re-sign main app binary with JIT entitlements
+        if: steps.should_build.outputs.skip != 'true'
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "Re-signing main app binary with JIT entitlements..."
+          codesign -f --timestamp --options runtime \
+            --entitlements src-tauri/entitlements/aeroe.entitlements \
+            --sign "$APPLE_SIGNING_IDENTITY" \
+            --keychain build.keychain \
+            src-tauri/target/${{ matrix.target }}/release/bundle/macos/Aeroe.app/Contents/MacOS/aeroe
+          
+          echo "Verifying entitlements on main binary:"
+          codesign -d --entitlements - src-tauri/target/${{ matrix.target }}/release/bundle/macos/Aeroe.app/Contents/MacOS/aeroe
       # --- END: Sidecar Verification and Manual Codesign ---
 
       - name: Prepare artifact paths for upload
