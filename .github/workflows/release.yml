@@ -266,7 +266,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
-          cache: 'yarn'
+          cache: ${{ hashFiles('yarn.lock') != '' && 'yarn' || '' }}
 
       - name: Install Rust stable
         if: steps.should_build.outputs.skip != 'true'
