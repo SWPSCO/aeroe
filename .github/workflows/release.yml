@@ -178,14 +178,15 @@ jobs:
             os_name: "macOS-x86_64"
             watcher_binary: "watcher-macos-x64"
             arch: "x64"
-          - platform: [self-hosted, macOS, ARM64]
+          # - platform: [self-hosted, macOS, ARM64]
+          - platform: macos-latest
             target: aarch64-apple-darwin
             artifact_bundle_extension: ".app"
             build_args: "--target aarch64-apple-darwin"
             os_name: "macOS-aarch64"
             watcher_binary: "watcher-macos-aarch64"
             arch: "aarch64"
-            runner_type: "self-hosted"
+            # runner_type: "self-hosted"
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Check if this architecture should be built
