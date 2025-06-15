@@ -2,3 +2,20 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 @import "@fontsource-variable/afacad/index.css";
+
+/* Write your global styles here, in PostCSS syntax */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: black;
+}

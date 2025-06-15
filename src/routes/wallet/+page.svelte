@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { walletStore } from '$lib/stores/wallet';
+    import { walletStore } from '$lib/stores/wallet';
 	import TransactionList from '$lib/components/wallet/TransactionList.svelte';
 	import SendForm from '$lib/components/wallet/SendForm.svelte';
 	import QrCode from '$lib/components/wallet/QrCode.svelte';
@@ -39,9 +39,9 @@
 				>
 					Receive
 				</button>
-			</div>
-		</div>
-	{/if}
+            </div>
+        </div>
+    {/if}
 
 	{#if showSendForm}
 		<div class="px-8">
