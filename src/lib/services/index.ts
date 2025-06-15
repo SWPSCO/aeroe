@@ -5,6 +5,8 @@
 import * as real from './tauri';
 import * as mock from './tauri.mock';
 
+export type { WalletBalance } from './tauri';
+
 const useMock = import.meta.env.VITE_MOCK_API === 'true';
 
 console.log(useMock ? 'Using Mock API' : 'Using Real Tauri API');

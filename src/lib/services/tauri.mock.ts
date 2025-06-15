@@ -1,4 +1,4 @@
-import type { BackendResponse, AeroeStatus, WalletBalance } from './tauri';
+import type { BackendResponse, AeroeStatus, WalletBalance, NockchainTxMeta } from './tauri';
 
 // Helper function to simulate async backend calls
 async function mockInvoke<T>(data: T, success = true, delay = 250): Promise<BackendResponse<T>> {
@@ -22,6 +22,7 @@ const mockState: {
     wallets: string[];
     activeWallet: string | null;
     balances: Record<string, number>;
+    transactions: Record<string, NockchainTxMeta>;
 } = {
     termsAccepted: false,
     privacyAccepted: false,
@@ -29,6 +30,7 @@ const mockState: {
     wallets: [],
     activeWallet: null,
     balances: {},
+    transactions: {},
 };
 
 
@@ -76,6 +78,7 @@ export const wallet = {
     create: (walletName: string, seedphrase: string[]) => {
         console.log(`Mock wallet created: ${walletName} with seed`, seedphrase);
         mockState.wallets.push(walletName);
+        mockState.balances[walletName] = 0; // Set initial balance to 0 for new wallets
         return mockInvoke<void>(undefined);
     },
     load: (walletName: string) => {
@@ -83,11 +86,57 @@ export const wallet = {
         return mockInvoke<void>(undefined);
     },
     masterPubkey: (walletName: string) => mockInvoke<string>(`mock-pubkey-for-${walletName}`),
-    balance: (walletName: string) => mockInvoke<WalletBalance>({ coin: 'Nock', amount: 123.45 }),
+    balance: (walletName: string) => {
+        const amount = mockState.balances[walletName] ?? 123.45;
+        return mockInvoke<WalletBalance>({ coin: 'Nock', amount });
+    },
     getHistory: (walletName: string) => mockInvoke<any>({ transactions: [] }),
     listDrafts: (walletName: string) => mockInvoke<any>({ drafts: [] }),
     createDraft: (walletName: string) => mockInvoke<any>({ draftId: 'mock-draft-123' }),
     sendTransaction: (walletName: string, draftId: string) => mockInvoke<any>({ txid: 'mock-txid-abc' }),
+    createTx: (
+        walletName: string,
+        transactions: { recipient: string, amount: number }[],
+        fee: number,
+    ) => {
+        const draftId = crypto.randomUUID();
+        const newTx: NockchainTxMeta = {
+            draftId,
+            transactions,
+            fee,
+            createdAt: new Date().toISOString(),
+            signedAt: null,
+            broadcastedAt: null,
+            status: 'draft',
+        };
+        mockState.transactions[draftId] = newTx;
+        console.log(`Mock transaction created for ${walletName}:`, newTx);
+        return mockInvoke<NockchainTxMeta>(newTx);
+    },
+    signTx: (walletName: string, draftId: string) => {
+        const tx = mockState.transactions[draftId];
+        if (tx) {
+            tx.status = 'signed';
+            tx.signedAt = new Date().toISOString();
+            console.log(`Mock transaction signed for ${walletName}:`, tx);
+            return mockInvoke<NockchainTxMeta>(tx);
+        }
+        return mockInvoke<NockchainTxMeta>({} as NockchainTxMeta, false);
+    },
+    sendTx: (walletName: string, draftId: string) => {
+        const tx = mockState.transactions[draftId];
+        if (tx) {
+            tx.status = 'pending';
+            tx.broadcastedAt = new Date().toISOString();
+            console.log(`Mock transaction sent for ${walletName}:`, tx);
+            return mockInvoke<NockchainTxMeta>(tx);
+        }
+        return mockInvoke<NockchainTxMeta>({} as NockchainTxMeta, false);
+    },
+    listUnsentTxs: (walletName: string) => {
+        console.log(`Listing unsent mock transactions for ${walletName}:`, mockState.transactions);
+        return mockInvoke<{ [draftId: string]: NockchainTxMeta }>(mockState.transactions);
+    }
 };
 
 export const node = {
