@@ -34,7 +34,10 @@
     ],
     "macOS": {
       "entitlements": "entitlements/aeroe.entitlements"
-    }
+    },
+    "externalBin": [
+      "bin/watcher"
+    ]
   },
   "plugins": {
     "updater": {

@@ -225,12 +225,13 @@ jobs:
         if: steps.should_build.outputs.skip != 'true'
         run: |
           echo "Replacing watcher binary with ${{ matrix.watcher_binary }}"
+          mkdir -p src-tauri/bin
           if [ -f "watcher-binaries/${{ matrix.watcher_binary }}" ]; then
-            cp "watcher-binaries/${{ matrix.watcher_binary }}" "src-tauri/assets/watcher"
-            chmod +x "src-tauri/assets/watcher"
+            cp "watcher-binaries/${{ matrix.watcher_binary }}" "src-tauri/bin/watcher-${{ matrix.target }}"
+            chmod +x "src-tauri/bin/watcher-${{ matrix.target }}"
             echo "Successfully replaced watcher binary with architecture-specific version"
             echo "Binary size:"
-            ls -la "src-tauri/assets/watcher"
+            ls -la "src-tauri/bin/watcher-${{ matrix.target }}"
           else
             echo "Error: Could not find watcher binary: ${{ matrix.watcher_binary }}"
             echo "Available binaries:"
@@ -481,12 +482,13 @@ jobs:
         if: steps.should_build.outputs.skip != 'true' && !matrix.use_native_runner
         run: |
           echo "Replacing watcher binary with ${{ matrix.watcher_binary }}"
+          mkdir -p src-tauri/bin
           if [ -f "watcher-binaries/${{ matrix.watcher_binary }}" ]; then
-            cp "watcher-binaries/${{ matrix.watcher_binary }}" "src-tauri/assets/watcher"
-            chmod +x "src-tauri/assets/watcher"
+            cp "watcher-binaries/${{ matrix.watcher_binary }}" "src-tauri/bin/watcher-${{ matrix.target }}"
+            chmod +x "src-tauri/bin/watcher-${{ matrix.target }}"
             echo "Successfully replaced watcher binary with architecture-specific version"
             echo "Binary size:"
-            ls -la "src-tauri/assets/watcher"
+            ls -la "src-tauri/bin/watcher-${{ matrix.target }}"
           else
             echo "Error: Could not find watcher binary: ${{ matrix.watcher_binary }}"
             echo "Available binaries:"

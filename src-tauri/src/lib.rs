@@ -41,7 +41,6 @@ pub async fn run() {
             let wallet_dir = data_dir.join("wallet");
             let draft_dir = data_dir.join("draft");
             let nockchain_dir = data_dir.join("nockchain");
-            let watcher_dir = data_dir.join("watcher");
             let keycrypt_dir = data_dir.join("vault");
 
             // --- Nockchain Status Receiver ---
@@ -78,7 +77,7 @@ pub async fn run() {
 
             // --- Watcher Service ---
             tauri::async_runtime::spawn(async move {
-                let watcher = Watcher::new(watcher_dir, wallet_dir);
+                let watcher = Watcher::new(wallet_dir, data_dir);
                 if let Err(e) = watcher.start().await {
                     error!("Watcher service failed to start: {}", e);
                 }

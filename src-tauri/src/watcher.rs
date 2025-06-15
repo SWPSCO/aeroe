@@ -1,185 +1,115 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::ffi::CString;
 use std::mem::size_of;
 use std::os::raw::{c_int, c_void};
 use std::ptr;
-use std::fs;
-use std::os::unix::fs::PermissionsExt;
+use std::env;
+use std::fs::File;
+use std::os::unix::io::AsRawFd;
 use tracing::warn;
 
-use libc::{pid_t, fork, pipe, setsid, execl, getpid, close, write, read, waitpid, _exit};
-
-static WATCHER_BIN: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/watcher"));
+use libc::{pid_t, fork, pipe, setsid, execl, getpid, close, write, read, waitpid, _exit, dup2, STDOUT_FILENO, STDERR_FILENO};
 
 #[derive(Debug)]
 pub struct Watcher {
-    aeroe_pid: u32,
-    file: PathBuf,
     wallet_dir: PathBuf,
+    log_dir: PathBuf,
 }
 
 impl Watcher {
-    pub fn new(file: PathBuf, wallet_dir: PathBuf) -> Self {
-        let aeroe_pid = std::process::id();
-        Self {
-            aeroe_pid,
-            file,
-            wallet_dir,
-        }
+    pub fn new(wallet_dir: PathBuf, log_dir: PathBuf) -> Self {
+        Self { wallet_dir, log_dir }
     }
 
     pub async fn start(&self) -> Result<(), String> {
-        self.deploy_watcher()?;
-        let mut watcher_pid = self.start_watcher()?;
+        // Resolve the path to the signed sidecar binary within the app bundle
+        let sidecar_path = env::current_exe()
+            .map_err(|e| format!("Failed to get current exe path: {}", e))?
+            .parent()
+            .ok_or_else(|| "Failed to get parent directory of main executable".to_string())?
+            //.join(format!("watcher-{}", env!("TAURI_ENV_TARGET_TRIPLE")));
+            .join(format!("watcher"));
 
+        if !sidecar_path.exists() {
+            return Err(format!("Watcher binary not found at path: {:?}", sidecar_path));
+        }
+
+        let mut watcher_pid = self.start_watcher(&sidecar_path)?;
+
+        // This loop now correctly monitors the PID of the true daemon process
         loop {
             let watcher_pid_t: pid_t = watcher_pid as pid_t;
             let result = unsafe { libc::kill(watcher_pid_t, 0) };
             if result == -1 {
-                // If ESRCH, the process does not exist
                 let errno = std::io::Error::last_os_error().raw_os_error().unwrap_or(0);
                 if errno == libc::ESRCH {
-                    warn!("Process {} has exited. Restarting watcher...", watcher_pid_t);
-                    self.deploy_watcher()?;
-                    watcher_pid = self.start_watcher()?;
+                    warn!("Daemon process {} has exited. Restarting...", watcher_pid_t);
+                    watcher_pid = self.start_watcher(&sidecar_path)?;
                 } else {
-                    warn!("Unexpected error when checking watcher process: {}", errno);
+                    warn!("Unexpected error when checking daemon process: {}", errno);
                 }
             }
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
-        // Ok(()) // unreachable
     }
 
-    fn deploy_watcher(&self) -> Result<(), String> {
-        // Write the embedded binary to self.file
-        fs::write(&self.file, WATCHER_BIN)
-            .map_err(|e| format!("Failed to write watcher binary: {}", e))?;
+    // This function is a restoration of your original, correct double-fork
+    // daemonization logic. It now executes the pre-signed binary at `file`.
+    fn start_watcher(&self, file: &Path) -> Result<u32, String> {
+        let aeroe_pid = std::process::id();
+        let wallet_dir_str = self.wallet_dir.to_str().ok_or("wallet dir path is not valid utf8")?;
 
-        // Set executable permissions (0o755)
-        let mut perms = fs::metadata(&self.file)
-            .map_err(|e| format!("Failed to get metadata: {}", e))?
-            .permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(&self.file, perms)
-            .map_err(|e| format!("Failed to set permissions: {}", e))?;
-        Ok(())
-    }
-
-    fn start_watcher(&self) -> Result<u32, String> {
-        // Convert paths and aeroe_pid to CStrings
-        let file_str = self
-            .file
-            .to_str()
-            .ok_or_else(|| "Failed to convert watcher path to string".to_string())?;
-        let c_file = CString::new(file_str)
-            .map_err(|e| format!("Invalid watcher path (interior nul?): {}", e))?;
+        let c_file = CString::new(file.to_str().unwrap()).map_err(|e| e.to_string())?;
         let c_arg0 = c_file.clone();
-
-        let c_arg1 = CString::new(self.aeroe_pid.to_string())
-            .map_err(|e| format!("Invalid aeroe_pid to CString: {}", e))?;
-
-        let wallet_str = self
-            .wallet_dir
-            .to_str()
-            .ok_or_else(|| "Failed to convert wallet_dir to string".to_string())?;
-        let c_arg2 = CString::new(wallet_str)
-            .map_err(|e| format!("Invalid wallet_dir (interior nul?): {}", e))?;
+        let c_arg1 = CString::new(aeroe_pid.to_string()).map_err(|e| e.to_string())?;
+        let c_arg2 = CString::new(wallet_dir_str).map_err(|e| e.to_string())?;
 
         unsafe {
-            // Create a pipe so the grandchild can send its PID back
             let mut fds: [c_int; 2] = [0, 0];
-            if pipe(fds.as_mut_ptr()) == -1 {
-                return Err("pipe failed".into());
-            }
+            if pipe(fds.as_mut_ptr()) == -1 { return Err("pipe failed".into()); }
             let read_fd = fds[0];
             let write_fd = fds[1];
 
-            // First fork
             match fork() {
                 -1 => {
                     close(read_fd);
                     close(write_fd);
                     return Err("first fork failed".into());
                 }
-                0 => {
-                    // ─── In FIRST CHILD ───
+                0 => { // In FIRST CHILD
                     close(read_fd);
-
-                    // Detach from any controlling terminal / session
-                    if setsid() == -1 {
-                        let err_pid: pid_t = -1;
-                        let _ = write(
-                            write_fd,
-                            &err_pid as *const _ as *const c_void,
-                            size_of::<pid_t>(),
-                        );
-                        close(write_fd);
-                        _exit(1);
-                    }
-
-                    // Second fork
+                    if setsid() == -1 { _exit(1); }
                     match fork() {
-                        -1 => {
-                            let err_pid: pid_t = -1;
-                            let _ = write(
-                                write_fd,
-                                &err_pid as *const _ as *const c_void,
-                                size_of::<pid_t>(),
-                            );
-                            close(write_fd);
-                            _exit(1);
-                        }
-                        pid2 if pid2 > 0 => {
-                            // ─── INTERMEDIATE CHILD ───
-                            _exit(0);
-                        }
-                        _ => {
-                            // ─── GRANDCHILD (the actual watcher) ───
-                            let watcher_pid = getpid();
-                            let pid_to_write: pid_t = watcher_pid;
-                            let _ = write(
-                                write_fd,
-                                &pid_to_write as *const _ as *const c_void,
-                                size_of::<pid_t>(),
-                            );
-                            close(write_fd);
+                        -1 => { _exit(1); }
+                        pid2 if pid2 > 0 => { _exit(0); } // In INTERMEDIATE CHILD
+                        _ => { // In GRANDCHILD (the daemon)
+                            // Redirect stdout and stderr to a log file
+                            let log_path = self.log_dir.join("watcher.log");
+                            if let Ok(file) = File::create(&log_path) {
+                                let fd = file.as_raw_fd();
+                                dup2(fd, STDOUT_FILENO);
+                                dup2(fd, STDERR_FILENO);
+                            }
 
-                            // Replace with the watcher binary
-                            execl(
-                                c_file.as_ptr(),
-                                c_arg0.as_ptr(),
-                                c_arg1.as_ptr(),
-                                c_arg2.as_ptr(),
-                                ptr::null::<c_void>() as *const _,
-                            );
-                            _exit(1);
+                            let watcher_pid = getpid();
+                            let _ = write(write_fd, &watcher_pid as *const _ as *const c_void, size_of::<pid_t>());
+                            close(write_fd);
+                            execl(c_file.as_ptr(), c_arg0.as_ptr(), c_arg1.as_ptr(), c_arg2.as_ptr(), ptr::null::<c_void>() as *const _);
+                            _exit(1); // execl should not return
                         }
                     }
                 }
-                child1_pid => {
-                    // ─── In ORIGINAL PARENT ───
+                child1_pid => { // In ORIGINAL PARENT
                     close(write_fd);
-
-                    // Read exactly sizeof(pid_t) bytes
                     let mut pid_buf: pid_t = 0;
                     let bytes_to_read = size_of::<pid_t>() as usize;
-                    let n = read(
-                        read_fd,
-                        &mut pid_buf as *mut _ as *mut c_void,
-                        bytes_to_read,
-                    );
+                    let n = read(read_fd, &mut pid_buf as *mut _ as *mut c_void, bytes_to_read);
                     close(read_fd);
-
-                    // Reap the intermediate child
                     let mut status: c_int = 0;
                     let _ = waitpid(child1_pid, &mut status as *mut _, 0);
 
-                    if n != bytes_to_read as isize {
-                        return Err("failed to read watcher pid".into());
-                    }
-                    if pid_buf <= 0 {
-                        return Err("failed to start watcher".into());
+                    if n != bytes_to_read as isize || pid_buf <= 0 {
+                        return Err("failed to read daemon pid or daemon failed to start".into());
                     }
                     return Ok(pid_buf as u32);
                 }
