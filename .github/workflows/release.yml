@@ -336,7 +336,7 @@ jobs:
           args: ${{ matrix.build_args }}
 
       # --- BEGIN: Sidecar Verification and Manual Codesign ---
-      - name: Debug: List all files in bundle directory
+      - name: Debug List all files in bundle directory
         run: |
           echo "Listing all files in src-tauri/target/release/bundle/macos:"
           ls -lR src-tauri/target/release/bundle/macos || echo "Directory does not exist"
