@@ -273,17 +273,24 @@ impl Wallet {
         Ok(draft.metadata.clone())
     }
     pub async fn send_tx(&mut self, draft_id: String) -> Result<NockchainTxMeta, String> {
+        // First, get the draft location and check if draft exists
+        let draft_location = {
+            let Some(draft) = self.drafts.get(&draft_id) else {
+                return Err("draft not found".to_string());
+            };
+            draft.location.clone()
+        };
+        
+        tracing::info!("sending command to broadcast the transaction: {:?}", draft_location);
+        // send command to broadcast the transaction
+        let _ = self.send_command(Commands::MakeTx {
+            draft: draft_location,
+        }).await?;
+
+        // Now update the draft
         let Some(draft) = self.drafts.get_mut(&draft_id) else {
             return Err("draft not found".to_string());
         };
-        // send command to broadcast the transaction
-        /*
-        let _ = self.send_command(Commands::MakeTx {
-            &draft.data // send in the raw data
-        }).await?;
-        */
-
-        // update the draft
         draft.metadata.status = NockchainTxStatus::Pending;
         draft.metadata.broadcasted_at = Some(std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
