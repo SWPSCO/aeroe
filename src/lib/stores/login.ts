@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 import { mainStore } from './main';
-import { vault, aeroe, wallet } from '$lib/services/tauri';
+import { vault, aeroe, wallet } from '$lib/services';
 
 type State = 'idle' | 'pending' | 'error';
 

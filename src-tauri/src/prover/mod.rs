@@ -11,13 +11,15 @@ use tokio::net::UnixListener;
 use nockapp::kernel::boot;
 use nockapp::npc_listener_driver;
 use nockapp::noun::slab::NounSlab;
-use nockapp::wire::{SystemWire, Wire};
+use nockapp::utils::make_tas;
+use nockapp::driver::IODriverFn;
 
 use nockchain::driver_init;
+use nockchain::setup;
 
 use crate::manager::{NockchainPeek, NockchainStatus};
 
-use nockvm::noun::{D, T};
+use nockvm::noun::{D, T, YES};
 use nockvm_macros::tas;
 
 // use kernels::dumb::KERNEL;
@@ -57,10 +59,11 @@ impl Prover {
         let mining_init_tx = Some(driver_signals.register_driver("mining"));
         let libp2p_init_tx = Some(driver_signals.register_driver("libp2p"));
 
-        let _born_task = driver_signals.create_born_task();
+        let _born_task = driver_signals.create_task();
 
-        // realnet no BTC poke
-        nockapp.poke(SystemWire.to_wire(), self.realnet_no_btc()).await.map_err(|e| e.to_string())?;
+        self.genesis_seal_set(&mut nockapp).await?;
+
+        setup::poke(&mut nockapp, setup::SetupCommand::PokeSetBtcData).await.map_err(|e| e.to_string())?;
 
         // mining_driver
         nockapp.add_io_driver(miner::mining_driver(mining_init_tx)).await;
@@ -74,7 +77,7 @@ impl Prover {
         nockapp.add_io_driver(libp2p_driver).await;
 
         // born_driver
-        nockapp.add_io_driver(driver_signals.create_born_driver()).await;
+        nockapp.add_io_driver(self.born(driver_signals)).await;
 
         // npc_driver
         let socket_path = self.nockchain_dir.clone().join(format!("npc/{}.sock", self.name));
@@ -111,16 +114,45 @@ impl Prover {
         Ok(nockapp)
     }
 
-    fn realnet_no_btc(&self) -> NounSlab {
-        // Realnet with no BTC node
-        let mut poke_slab = NounSlab::new();
-        let poke_noun = T(
-            &mut poke_slab,
-            &[D(tas!(b"command")), D(tas!(b"btc-data")), D(0)],
-        );
-        poke_slab.set_root(poke_noun);
-        poke_slab
+    async fn genesis_seal_set(&self, nockapp: &mut nockapp::NockApp) -> Result<(), String> {
+        let genesis_seal_set: bool = {
+            let mut peek_slab = NounSlab::new();
+            let tag = make_tas(&mut peek_slab, "genesis-seal-set").as_noun();
+            let peek_noun = T(&mut peek_slab, &[tag, D(0)]);
+            peek_slab.set_root(peek_noun);
+            if let Some(peek_res) = nockapp.peek_handle(peek_slab).await.map_err(|e| e.to_string())? {
+                let genesis_seal = unsafe { peek_res.root() };
+                if genesis_seal.is_atom() {
+                    unsafe { genesis_seal.raw_equals(&YES) }
+                } else {
+                    return Err("Invalid genesis seal".to_string());
+                }
+            } else {
+                return Err("Genesis seal peak failed".to_string());
+            }
+        };
+
+        if !genesis_seal_set {
+            setup::poke(
+                nockapp,
+                setup::SetupCommand::PokeSetGenesisSeal(setup::REALNET_GENESIS_MESSAGE.to_string()),
+            ).await.map_err(|e| e.to_string())?;
+        }
+
+        Ok(())
     }
+
+    fn born(&self, mut driver_signals: driver_init::DriverInitSignals) -> IODriverFn {
+        let mut born_slab = NounSlab::new();
+        let born = T(
+            &mut born_slab,
+            &[D(tas!(b"command")), D(tas!(b"born")), D(0)],
+        );
+        born_slab.set_root(born);
+        driver_signals.create_driver(born_slab, None)
+    }
+
+
     fn npc_socket(&self, socket_path: PathBuf) -> Result<UnixListener, String> {
         // delete existing socket
         if socket_path.exists() {

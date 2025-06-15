@@ -9,6 +9,27 @@ on:
         required: false
         default: false
         type: boolean
+      build_macos_x64:
+        description: 'Build macOS x64'
+        required: false
+        default: true
+        type: boolean
+      build_macos_aarch64:
+        description: 'Build macOS aarch64'
+        required: false
+        default: true
+        type: boolean
+      build_linux_x64:
+        description: 'Build Linux x64'
+        required: false
+        default: true
+        type: boolean
+      build_linux_aarch64:
+        description: 'Build Linux aarch64'
+        required: false
+        default: false
+        type: boolean
+
 jobs:
   update_version:
     name: Update App Version
@@ -70,9 +91,77 @@ jobs:
           name: tauri-config-json
           path: src-tauri/tauri.conf.json
 
-  build_macOS_bundles:
+  download_watcher_binaries:
+    name: Download Watcher Binaries
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -eo pipefail {0}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Download and extract watcher binaries
+        run: |
+          echo "Downloading watcher binaries from latest release..."
+          WATCHER_RELEASE_URL="https://github.com/SWPSCO/aeroe-watcher/releases/latest"
+          
+          # Create temp directory for downloads
+          mkdir -p watcher_downloads
+          cd watcher_downloads
+          
+          # Download each architecture's zip file
+          echo "Downloading macOS aarch64 watcher..."
+          curl -L -o macos_aarch64-aeroe-watcher.zip "${WATCHER_RELEASE_URL}/download/macos_aarch64-aeroe-watcher.zip"
+          
+          echo "Downloading macOS x64 watcher..."
+          curl -L -o macos_x64-aeroe-watcher.zip "${WATCHER_RELEASE_URL}/download/macos_x64-aeroe-watcher.zip"
+          
+          echo "Downloading Linux aarch64 watcher..."
+          curl -L -o linux_aarch64-aeroe-watcher.zip "${WATCHER_RELEASE_URL}/download/linux_aarch64-aeroe-watcher.zip"
+          
+          echo "Downloading Linux x64 watcher..."
+          curl -L -o linux_x64-aeroe-watcher.zip "${WATCHER_RELEASE_URL}/download/linux_x64-aeroe-watcher.zip"
+          
+          # Extract binaries
+          echo "Extracting binaries..."
+          for zip_file in *.zip; do
+            echo "Extracting $zip_file..."
+            unzip -j "$zip_file" -d .
+            
+            # Get the binary name (same as zip file without .zip extension)
+            binary_name="${zip_file%.zip}"
+            
+            # Rename extracted binary to standardized format
+            if [[ "$zip_file" == "macos_aarch64"* ]]; then
+              mv "$binary_name" watcher-macos-aarch64
+            elif [[ "$zip_file" == "macos_x64"* ]]; then
+              mv "$binary_name" watcher-macos-x64
+            elif [[ "$zip_file" == "linux_aarch64"* ]]; then
+              mv "$binary_name" watcher-linux-aarch64
+            elif [[ "$zip_file" == "linux_x64"* ]]; then
+              mv "$binary_name" watcher-linux-x64
+            fi
+          done
+          
+          # Make all binaries executable
+          chmod +x watcher-*
+          
+          echo "Downloaded watcher binaries:"
+          ls -la watcher-*
+
+      - name: Upload watcher binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: watcher-binaries
+          path: watcher_downloads/watcher-*
+
+  build_macos_bundles:
     name: Build macOS App Bundles
-    needs: update_version
+    needs: [update_version, download_watcher_binaries]
+    if: ${{ inputs.build_macos_x64 || inputs.build_macos_aarch64 }}
     defaults:
       run:
         shell: bash -eo pipefail {0}
@@ -87,38 +176,84 @@ jobs:
             artifact_bundle_extension: ".app"
             build_args: "--target x86_64-apple-darwin"
             os_name: "macOS-x86_64"
+            watcher_binary: "watcher-macos-x64"
+            arch: "x64"
           - platform: macos-latest
             target: aarch64-apple-darwin
             artifact_bundle_extension: ".app"
             build_args: "--target aarch64-apple-darwin"
             os_name: "macOS-aarch64"
+            watcher_binary: "watcher-macos-aarch64"
+            arch: "aarch64"
     runs-on: ${{ matrix.platform }}
     steps:
+      - name: Check if this architecture should be built
+        id: should_build
+        run: |
+          if [[ "${{ matrix.arch }}" == "x64" && "${{ inputs.build_macos_x64 }}" == "false" ]]; then
+            echo "Skipping macOS x64 build as it's not selected"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.arch }}" == "aarch64" && "${{ inputs.build_macos_aarch64 }}" == "false" ]]; then
+            echo "Skipping macOS aarch64 build as it's not selected"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "Building ${{ matrix.arch }} as requested"
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout code at specific tag
+        if: steps.should_build.outputs.skip != 'true'
         uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
 
       - name: Download tauri.conf.json
+        if: steps.should_build.outputs.skip != 'true'
         uses: actions/download-artifact@v4
         with:
           name: tauri-config-json
           path: src-tauri
 
+      - name: Download watcher binaries
+        if: steps.should_build.outputs.skip != 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: watcher-binaries
+          path: watcher-binaries
+
+      - name: Replace watcher binary with architecture-specific version
+        if: steps.should_build.outputs.skip != 'true'
+        run: |
+          echo "Replacing watcher binary with ${{ matrix.watcher_binary }}"
+          if [ -f "watcher-binaries/${{ matrix.watcher_binary }}" ]; then
+            cp "watcher-binaries/${{ matrix.watcher_binary }}" "src-tauri/assets/watcher"
+            chmod +x "src-tauri/assets/watcher"
+            echo "Successfully replaced watcher binary with architecture-specific version"
+            echo "Binary size:"
+            ls -la "src-tauri/assets/watcher"
+          else
+            echo "Error: Could not find watcher binary: ${{ matrix.watcher_binary }}"
+            echo "Available binaries:"
+            ls -la watcher-binaries/
+            exit 1
+          fi
+
       - name: Setup Node.js
+        if: steps.should_build.outputs.skip != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: 'yarn'
 
       - name: Install Rust stable
+        if: steps.should_build.outputs.skip != 'true'
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: nightly
           targets: ${{ matrix.target }}
 
       - name: Import Apple Developer Certificate
-        if: runner.os == 'macOS'
+        if: steps.should_build.outputs.skip != 'true' && runner.os == 'macOS'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -134,19 +269,28 @@ jobs:
           rm certificate.p12
 
       - name: Ensure x86_64-apple-darwin target is installed for macOS x86_64 build
-        if: matrix.target == 'x86_64-apple-darwin' && matrix.platform == 'macos-latest'
+        if: steps.should_build.outputs.skip != 'true' && matrix.target == 'x86_64-apple-darwin' && matrix.platform == 'macos-latest'
         run: rustup target add x86_64-apple-darwin
 
       - name: Rust Cache
+        if: steps.should_build.outputs.skip != 'true'
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
       - name: Install frontend dependencies (yarn)
+        if: steps.should_build.outputs.skip != 'true'
         run: yarn install
 
+      - name: Create .env file
+        if: steps.should_build.outputs.skip != 'true'
+        run: |
+          echo "PUBLIC_AEROE_DEV_PAGE=false" > .env
+          echo "Created .env file:"
+          cat .env
+
       - name: Create API Key file for Notarization
-        if: ${{ inputs.notarize }}
+        if: steps.should_build.outputs.skip != 'true' && inputs.notarize
         env:
           APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_P8 }}
         run: |
@@ -162,7 +306,7 @@ jobs:
           fi
 
       - name: Build Tauri app (with notarization)
-        if: ${{ inputs.notarize }}
+        if: steps.should_build.outputs.skip != 'true' && inputs.notarize
         uses: tauri-apps/tauri-action@v0.5.6
         id: tauri_build_notarized
         env:
@@ -178,7 +322,7 @@ jobs:
           args: ${{ matrix.build_args }}
 
       - name: Build Tauri app (without notarization)
-        if: ${{ !inputs.notarize }}
+        if: steps.should_build.outputs.skip != 'true' && !inputs.notarize
         uses: tauri-apps/tauri-action@v0.5.6
         id: tauri_build_unsigned
         env:
@@ -191,6 +335,7 @@ jobs:
           args: ${{ matrix.build_args }}
 
       - name: Prepare artifact paths for upload
+        if: steps.should_build.outputs.skip != 'true'
         id: prep_artifact_paths
         shell: bash
         run: |
@@ -209,6 +354,8 @@ jobs:
           # Add the .tar.gz and .tar.gz.sig files that tauri creates but doesn't include in artifactPaths
           # These are needed for the Tauri v2 updater plugin
           additional_paths=""
+          
+          # Handle macOS .app bundles
           for path in $(echo "${paths_list}" | grep "\.app$"); do
             tar_gz_path="${path}.tar.gz"
             sig_path="${path}.tar.gz.sig"
@@ -257,16 +404,339 @@ jobs:
           echo -e "${all_paths}" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Upload macOS Artifacts
+      - name: Upload Build Artifacts
+        if: steps.should_build.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: macOS-${{ matrix.os_name }}-${{ needs.update_version.outputs.app_version }}
+          name: ${{ matrix.os_name }}-${{ needs.update_version.outputs.app_version }}
           path: ${{ steps.prep_artifact_paths.outputs.paths }}
           if-no-files-found: error # Fail the workflow if no files are found
 
+  build_linux_bundles:
+    name: Build Linux App Bundles
+    needs: [update_version, download_watcher_binaries]
+    if: ${{ inputs.build_linux_x64 || inputs.build_linux_aarch64 }}
+    defaults:
+      run:
+        shell: bash -eo pipefail {0}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            artifact_bundle_extension: ".AppImage"
+            build_args: "--target x86_64-unknown-linux-gnu"
+            os_name: "Linux-x86_64"
+            watcher_binary: "watcher-linux-x64"
+            arch: "x64"
+            use_native_runner: false
+          - platform: ubuntu-22.04
+            target: aarch64-unknown-linux-gnu
+            artifact_bundle_extension: ".AppImage"
+            build_args: "--target aarch64-unknown-linux-gnu"
+            os_name: "Linux-aarch64"
+            watcher_binary: "watcher-linux-aarch64"
+            arch: "aarch64"
+            use_native_runner: true
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Check if this architecture should be built
+        id: should_build
+        run: |
+          if [[ "${{ matrix.arch }}" == "x64" && "${{ inputs.build_linux_x64 }}" == "false" ]]; then
+            echo "Skipping Linux x64 build as it's not selected"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.arch }}" == "aarch64" && "${{ inputs.build_linux_aarch64 }}" == "false" ]]; then
+            echo "Skipping Linux aarch64 build as it's not selected"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "Building ${{ matrix.arch }} as requested"
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout code at specific tag
+        if: steps.should_build.outputs.skip != 'true' && !matrix.use_native_runner
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Download tauri.conf.json
+        if: steps.should_build.outputs.skip != 'true' && !matrix.use_native_runner
+        uses: actions/download-artifact@v4
+        with:
+          name: tauri-config-json
+          path: src-tauri
+
+      - name: Download watcher binaries
+        if: steps.should_build.outputs.skip != 'true' && !matrix.use_native_runner
+        uses: actions/download-artifact@v4
+        with:
+          name: watcher-binaries
+          path: watcher-binaries
+
+      - name: Replace watcher binary with architecture-specific version
+        if: steps.should_build.outputs.skip != 'true' && !matrix.use_native_runner
+        run: |
+          echo "Replacing watcher binary with ${{ matrix.watcher_binary }}"
+          if [ -f "watcher-binaries/${{ matrix.watcher_binary }}" ]; then
+            cp "watcher-binaries/${{ matrix.watcher_binary }}" "src-tauri/assets/watcher"
+            chmod +x "src-tauri/assets/watcher"
+            echo "Successfully replaced watcher binary with architecture-specific version"
+            echo "Binary size:"
+            ls -la "src-tauri/assets/watcher"
+          else
+            echo "Error: Could not find watcher binary: ${{ matrix.watcher_binary }}"
+            echo "Available binaries:"
+            ls -la watcher-binaries/
+            exit 1
+          fi
+
+      # Native x64 Linux build (existing approach)
+      - name: Setup Node.js
+        if: steps.should_build.outputs.skip != 'true' && !matrix.use_native_runner
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: 'yarn'
+
+      - name: Install Linux dependencies
+        if: steps.should_build.outputs.skip != 'true' && !matrix.use_native_runner && runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential curl wget file libssl-dev libgtk-3-dev libappindicator3-dev librsvg2-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libsoup-3.0-dev
+
+      - name: Install Rust stable
+        if: steps.should_build.outputs.skip != 'true' && !matrix.use_native_runner
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: nightly
+          targets: ${{ matrix.target }}
+
+      - name: Rust Cache
+        if: steps.should_build.outputs.skip != 'true' && !matrix.use_native_runner
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies (yarn)
+        if: steps.should_build.outputs.skip != 'true' && !matrix.use_native_runner
+        run: yarn install
+
+      - name: Create .env file
+        if: steps.should_build.outputs.skip != 'true' && !matrix.use_native_runner
+        run: |
+          echo "PUBLIC_AEROE_DEV_PAGE=false" > .env
+          echo "Created .env file:"
+          cat .env
+
+      - name: Build Tauri app (x64)
+        if: steps.should_build.outputs.skip != 'true' && !matrix.use_native_runner
+        uses: tauri-apps/tauri-action@v0.5.6
+        id: tauri_build_x64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: '.'
+          args: ${{ matrix.build_args }}
+
+      # Native aarch64 Linux build using ARM runner
+      - name: ⚠️ ARM64 Build Notice
+        if: steps.should_build.outputs.skip != 'true' && matrix.use_native_runner
+        run: |
+          echo "🚨 NOTICE: ARM64 builds use emulated runners and take significantly longer (~1 hour vs ~10 minutes)"
+          echo "📊 This will consume more GitHub Actions minutes but provides reliable aarch64 Linux builds"
+          echo "🚀 Starting ARM64 build process..."
+
+      - name: Build aarch64 Linux app using native ARM runner
+        if: steps.should_build.outputs.skip != 'true' && matrix.use_native_runner
+        uses: pguyot/arm-runner-action@v2.6.5
+        id: tauri_build_aarch64
+        with:
+          base_image: https://dietpi.com/downloads/images/DietPi_RPi5-ARMv8-Bookworm.img.xz
+          cpu: cortex-a72
+          bind_mount_repository: true
+          image_additional_mb: 10240
+          optimize_image: no
+          commands: |
+            # Prevent Rust from complaining about $HOME not matching eid home
+            export HOME=/root
+            
+            # Workaround to CI worker being stuck on Updating crates.io index
+            export CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
+            
+            # Install setup prerequisites
+            apt-get update -y --allow-releaseinfo-change
+            apt-get autoremove -y
+            apt-get install -y --no-install-recommends --no-install-suggests curl libwebkit2gtk-4.1-dev build-essential libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 file jq unzip
+            curl https://sh.rustup.rs -sSf | sh -s -- -y
+            . "$HOME/.cargo/env"
+            curl -fsSL https://deb.nodesource.com/setup_lts.x | bash
+            apt-get install -y nodejs
+            
+            # Download and extract watcher binaries
+            echo "Downloading watcher binaries from latest release..."
+            WATCHER_RELEASE_URL="https://github.com/SWPSCO/aeroe-watcher/releases/latest"
+            curl -L -o ${{ matrix.watcher_binary }}.zip "${WATCHER_RELEASE_URL}/download/${{ matrix.watcher_binary }}.zip"
+            unzip -j "${{ matrix.watcher_binary }}.zip" -d .
+            
+            # The binary inside the zip has the same name as the zip file (minus .zip extension)
+            binary_name="${{ matrix.watcher_binary }}"
+            if [ -f "$binary_name" ]; then
+              cp "$binary_name" "src-tauri/assets/watcher"
+              chmod +x "src-tauri/assets/watcher"
+              echo "Successfully replaced watcher binary with ${{ matrix.watcher_binary }}"
+              ls -la "src-tauri/assets/watcher"
+            else
+              echo "Error: Could not find watcher binary: $binary_name"
+              ls -la .
+              exit 1
+            fi
+            
+            # Download and apply tauri.conf.json with updated version
+            echo "Updating tauri.conf.json version..."
+            TAG_NAME="${{ github.ref_name }}"
+            CLEANED_TAG_NAME="${TAG_NAME#v}"
+            echo "Setting version to: $CLEANED_TAG_NAME"
+            
+            CONFIG_FILE="src-tauri/tauri.conf.json"
+            if [ ! -f "$CONFIG_FILE" ]; then
+              echo "Error: $CONFIG_FILE not found"
+              exit 1
+            fi
+            
+            TMP_JSON_FILE=$(mktemp)
+            jq --arg new_version "$CLEANED_TAG_NAME" '.version = $new_version' "$CONFIG_FILE" > "$TMP_JSON_FILE"
+            if [ $? -ne 0 ]; then
+              echo "Error: jq command failed to update version"
+              rm "$TMP_JSON_FILE"
+              exit 1
+            fi
+            mv "$TMP_JSON_FILE" "$CONFIG_FILE"
+            echo "Successfully updated version in $CONFIG_FILE"
+            
+            # Create .env file
+            echo "PUBLIC_AEROE_DEV_PAGE=false" > .env
+            echo "Created .env file:"
+            cat .env
+            
+            # Install frontend dependencies
+            npm install
+            
+            # Build the application
+            npm run tauri build -- --verbose
+
+      - name: Prepare artifact paths for upload (x64)
+        if: steps.should_build.outputs.skip != 'true' && !matrix.use_native_runner
+        id: prep_artifact_paths_x64
+        shell: bash
+        run: |
+          # Get the artifact paths from the build step
+          paths_json='${{ steps.tauri_build_x64.outputs.artifactPaths }}'
+          echo "Raw artifactPaths from tauri_build: ${paths_json}"
+          
+          # Convert JSON array string to newline-separated paths
+          paths_list=$(echo "${paths_json}" | jq -r '.[]' 2>/dev/null || echo "")
+          
+          # Add the .tar.gz and .tar.gz.sig files for updater
+          additional_paths=""
+          
+          # Handle Linux AppImage files
+          for path in $(echo "${paths_list}" | grep "\.AppImage$"); do
+            tar_gz_path="${path}.tar.gz"
+            sig_path="${path}.tar.gz.sig"
+            if [ -f "$tar_gz_path" ]; then
+              arch_suffix="x64"
+              tar_gz_dir=$(dirname "$tar_gz_path")
+              new_tar_gz_name="Aeroe-${arch_suffix}.AppImage.tar.gz"
+              new_tar_gz_path="${tar_gz_dir}/${new_tar_gz_name}"
+              
+              cp "$tar_gz_path" "$new_tar_gz_path"
+              additional_paths="${additional_paths}${new_tar_gz_path}\n"
+              
+              if [ -f "$sig_path" ]; then
+                new_sig_name="Aeroe-${arch_suffix}.AppImage.tar.gz.sig"
+                new_sig_path="${tar_gz_dir}/${new_sig_name}"
+                cp "$sig_path" "$new_sig_path"
+                additional_paths="${additional_paths}${new_sig_path}\n"
+              fi
+            fi
+          done
+          
+          # Combine original paths with additional paths
+          all_paths="${paths_list}"
+          if [ -n "$additional_paths" ]; then
+            all_paths="${all_paths}\n$(echo -e "$additional_paths" | sed '/^$/d')"
+          fi
+          
+          echo "Formatted paths for upload:"
+          echo -e "${all_paths}"
+          
+          echo "paths<<EOF" >> $GITHUB_OUTPUT
+          echo -e "${all_paths}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Prepare artifact paths for upload (aarch64)
+        if: steps.should_build.outputs.skip != 'true' && matrix.use_native_runner
+        id: prep_artifact_paths_aarch64
+        shell: bash
+        run: |
+          # For ARM runner, we need to find the built artifacts manually
+          echo "Finding aarch64 artifacts..."
+          
+          # Find AppImage files
+          appimage_files=$(find src-tauri/target/release/bundle/appimage -name "*.AppImage" 2>/dev/null || echo "")
+          
+          all_paths=""
+          for appimage in $appimage_files; do
+            all_paths="${all_paths}${appimage}\n"
+            
+            # Look for corresponding tar.gz and sig files
+            tar_gz_path="${appimage}.tar.gz"
+            sig_path="${appimage}.tar.gz.sig"
+            
+            if [ -f "$tar_gz_path" ]; then
+              # Rename with architecture suffix
+              tar_gz_dir=$(dirname "$tar_gz_path")
+              new_tar_gz_name="Aeroe-aarch64.AppImage.tar.gz"
+              new_tar_gz_path="${tar_gz_dir}/${new_tar_gz_name}"
+              
+              cp "$tar_gz_path" "$new_tar_gz_path"
+              all_paths="${all_paths}${new_tar_gz_path}\n"
+              
+              if [ -f "$sig_path" ]; then
+                new_sig_name="Aeroe-aarch64.AppImage.tar.gz.sig"
+                new_sig_path="${tar_gz_dir}/${new_sig_name}"
+                cp "$sig_path" "$new_sig_path"
+                all_paths="${all_paths}${new_sig_path}\n"
+              fi
+            fi
+          done
+          
+          echo "Found artifacts:"
+          echo -e "${all_paths}"
+          
+          echo "paths<<EOF" >> $GITHUB_OUTPUT
+          echo -e "${all_paths}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Upload Build Artifacts
+        if: steps.should_build.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os_name }}-${{ needs.update_version.outputs.app_version }}
+          path: ${{ matrix.use_native_runner && steps.prep_artifact_paths_aarch64.outputs.paths || steps.prep_artifact_paths_x64.outputs.paths }}
+          if-no-files-found: error
+
   publish_release:
     name: Publish GitHub Release
-    needs: [update_version, build_macOS_bundles]
+    needs: [update_version, build_macos_bundles, build_linux_bundles]
+    if: always() && (needs.update_version.result == 'success') && ((needs.build_macos_bundles.result == 'success' || needs.build_macos_bundles.result == 'skipped') && (needs.build_linux_bundles.result == 'success' || needs.build_linux_bundles.result == 'skipped'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -284,11 +754,17 @@ jobs:
           echo "Files matching DMG pattern:"
           find artifacts -name "*.dmg" -type f || echo "No DMG files found"
           echo ""
-          echo "Files matching tar.gz pattern:"
-          find artifacts -name "*.app.tar.gz" -type f || echo "No tar.gz files found"
+          echo "Files matching AppImage pattern:"
+          find artifacts -name "*.AppImage" -type f || echo "No AppImage files found"
+          echo ""
+          echo "Files matching tar.gz pattern (macOS):"
+          find artifacts -name "*.app.tar.gz" -type f || echo "No macOS tar.gz files found"
+          echo ""
+          echo "Files matching tar.gz pattern (Linux):"
+          find artifacts -name "*.AppImage.tar.gz" -type f || echo "No Linux tar.gz files found"
           echo ""
           echo "Files matching sig pattern:"
-          find artifacts -name "*.app.tar.gz.sig" -type f || echo "No sig files found"
+          find artifacts -name "*.tar.gz.sig" -type f || echo "No sig files found"
 
       - name: Create Tauri Updater Static JSON
         run: |
@@ -329,12 +805,12 @@ jobs:
               }'
           fi
           
-          # Process aarch64 artifacts
+          # Process aarch64 macOS artifacts
           AARCH64_TAR_GZ=$(find artifacts -name "Aeroe-aarch64.app.tar.gz" -type f | head -1)
           AARCH64_SIG=$(find artifacts -name "Aeroe-aarch64.app.tar.gz.sig" -type f | head -1)
           
           if [ -f "$AARCH64_TAR_GZ" ] && [ -f "$AARCH64_SIG" ]; then
-            echo "Found aarch64 artifacts: $AARCH64_TAR_GZ and $AARCH64_SIG"
+            echo "Found aarch64 macOS artifacts: $AARCH64_TAR_GZ and $AARCH64_SIG"
             AARCH64_SIGNATURE=$(cat "$AARCH64_SIG")
             AARCH64_URL="$REPO_URL/releases/download/$TAG_NAME/Aeroe-aarch64.app.tar.gz"
             
@@ -347,6 +823,48 @@ jobs:
               \"darwin-aarch64\": {
                 \"signature\": \"$AARCH64_SIGNATURE\",
                 \"url\": \"$AARCH64_URL\"
+              }"
+          fi
+          
+          # Process x64 Linux artifacts
+          LINUX_X64_TAR_GZ=$(find artifacts -name "Aeroe-x64.AppImage.tar.gz" -type f | head -1)
+          LINUX_X64_SIG=$(find artifacts -name "Aeroe-x64.AppImage.tar.gz.sig" -type f | head -1)
+          
+          if [ -f "$LINUX_X64_TAR_GZ" ] && [ -f "$LINUX_X64_SIG" ]; then
+            echo "Found x64 Linux artifacts: $LINUX_X64_TAR_GZ and $LINUX_X64_SIG"
+            LINUX_X64_SIGNATURE=$(cat "$LINUX_X64_SIG")
+            LINUX_X64_URL="$REPO_URL/releases/download/$TAG_NAME/Aeroe-x64.AppImage.tar.gz"
+            
+            # Add comma if we already have entries
+            if [ -n "$PLATFORM_ENTRIES" ]; then
+              PLATFORM_ENTRIES="$PLATFORM_ENTRIES,"
+            fi
+            
+            PLATFORM_ENTRIES="$PLATFORM_ENTRIES
+              \"linux-x86_64\": {
+                \"signature\": \"$LINUX_X64_SIGNATURE\",
+                \"url\": \"$LINUX_X64_URL\"
+              }"
+          fi
+          
+          # Process aarch64 Linux artifacts
+          LINUX_AARCH64_TAR_GZ=$(find artifacts -name "Aeroe-aarch64.AppImage.tar.gz" -type f | head -1)
+          LINUX_AARCH64_SIG=$(find artifacts -name "Aeroe-aarch64.AppImage.tar.gz.sig" -type f | head -1)
+          
+          if [ -f "$LINUX_AARCH64_TAR_GZ" ] && [ -f "$LINUX_AARCH64_SIG" ]; then
+            echo "Found aarch64 Linux artifacts: $LINUX_AARCH64_TAR_GZ and $LINUX_AARCH64_SIG"
+            LINUX_AARCH64_SIGNATURE=$(cat "$LINUX_AARCH64_SIG")
+            LINUX_AARCH64_URL="$REPO_URL/releases/download/$TAG_NAME/Aeroe-aarch64.AppImage.tar.gz"
+            
+            # Add comma if we already have entries
+            if [ -n "$PLATFORM_ENTRIES" ]; then
+              PLATFORM_ENTRIES="$PLATFORM_ENTRIES,"
+            fi
+            
+            PLATFORM_ENTRIES="$PLATFORM_ENTRIES
+              \"linux-aarch64\": {
+                \"signature\": \"$LINUX_AARCH64_SIGNATURE\",
+                \"url\": \"$LINUX_AARCH64_URL\"
               }"
           fi
           
@@ -373,8 +891,8 @@ jobs:
           echo "Tag name (github.ref_name): ${{ github.ref_name }}"
           echo "Is prerelease condition: ${{ contains(github.ref_name, '-alpha') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-rc') }}"
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2.0.6
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2.0.8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -392,4 +910,7 @@ jobs:
             artifacts/macOS-*/dmg/*.dmg
             artifacts/macOS-*/macos/Aeroe-*.app.tar.gz
             artifacts/macOS-*/macos/Aeroe-*.app.tar.gz.sig
+            artifacts/Linux-*/appimage/*.AppImage
+            artifacts/Linux-*/linux/Aeroe-*.AppImage.tar.gz
+            artifacts/Linux-*/linux/Aeroe-*.AppImage.tar.gz.sig
             latest.json

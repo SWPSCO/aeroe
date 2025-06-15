@@ -1,12 +1,11 @@
 import { writable, get } from 'svelte/store';
 import { sessionStore } from './session';
-import { aeroe, terms } from '$lib/services/tauri';
+import { aeroe, terms } from '$lib/services';
 import { goto } from '$app/navigation';
 
 // Define the possible states
 type StateName = 'booting' | 'onboarding' | 'unauthenticated' | 'authenticated' | 'error';
 
-// The store now holds an object to include error details
 export interface MainStoreState {
   name: StateName;
   error?: string | null;
@@ -17,9 +16,8 @@ function createMainStore() {
   const { subscribe } = store;
 
   async function boot() {
-    // This is the robust, correct idempotent check. It reads the store's
-    // current state. If we are no longer 'booting', it means the sequence
-    // has already run or is in progress, so we should not run it again.
+
+    
     if (get(store).name !== 'booting') {
       return;
     }

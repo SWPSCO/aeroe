@@ -8,7 +8,6 @@
 	import ContentArea from '$lib/components/ContentArea.svelte';
 	import FeatureArea from '$lib/components/FeatureArea.svelte';
 	import Footer from '$lib/components/Footer.svelte';
-	import Header from '$lib/components/wallet/Header.svelte';
 
 	let { children } = $props();
 
@@ -37,8 +36,7 @@
 		</div>
 	{:else if $walletStore.status === 'loaded'}
 		<TopNav />
-		<ContentArea>
-            <Header balance={$walletStore.balance} masterPubkey={$walletStore.masterPubkey} />
+		<ContentArea class="bg-light">
 			<FeatureArea>
 				{@render children()}
 			</FeatureArea>

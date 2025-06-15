@@ -21,6 +21,15 @@ export interface AeroeStatus {
   activeWallet: string | null;
 }
 
+export interface NockchainTxMeta {
+  draftId: string;
+  transactions: { recipient: string, amount: number }[];
+  fee: number;
+  createdAt: string;
+  signedAt: string | null;
+  broadcastedAt: string | null;
+  status: 'draft' | 'signed' | 'pending';
+}
 
 async function handleInvoke<T>(command: string, args?: InvokeArgs): Promise<BackendResponse<T>> {
     try {
@@ -62,10 +71,15 @@ export const wallet = {
     load: (walletName: string) => handleInvoke<void>('wallet_load', { walletName }),
     masterPubkey: (walletName: string) => handleInvoke<string>('master_pubkey', { walletName }),
     balance: (walletName: string) => handleInvoke<WalletBalance>('balance', { walletName }),
+    createTx: (
+        walletName: string,
+        transactions: { recipient: string, amount: number }[],
+        fee: number,
+    ) => handleInvoke<NockchainTxMeta>('create_tx', { walletName, transactions, fee }),
+    signTx: (walletName: string, draftId: string) => handleInvoke<NockchainTxMeta>('sign_tx', { walletName, draftId }),
+    sendTx: (walletName: string, draftId: string) => handleInvoke<NockchainTxMeta>('send_tx', { walletName, draftId }),
+    listUnsentTxs: (walletName: string) => handleInvoke<{ [draftId: string]: NockchainTxMeta }>('list_unsent_txs', { walletName }),
     getHistory: (walletName: string) => notImplemented<any>(),
-    listDrafts: (walletName: string) => notImplemented<any>(),
-    createDraft: (walletName: string) => notImplemented<any>(),
-    sendTransaction: (walletName: string, draftId: string) => notImplemented<any>(),
 }
 
 export const node = {
