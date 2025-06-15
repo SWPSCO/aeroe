@@ -338,14 +338,14 @@ jobs:
       # --- BEGIN: Sidecar Verification and Manual Codesign ---
       - name: Debug List all files in bundle directory
         run: |
-          echo "Listing all files in src-tauri/target/release/bundle/macos:"
-          ls -lR src-tauri/target/release/bundle/macos || echo "Directory does not exist"
+          echo "Listing all files in src-tauri/target/${{ matrix.target }}/release/bundle/macos:"
+          ls -lR src-tauri/target/${{ matrix.target }}/release/bundle/macos || echo "Directory does not exist"
 
       - name: List .app Contents/MacOS (non-fatal)
         run: |
           echo "Listing Contents/MacOS in .app bundle:"
-          if [ -d src-tauri/target/release/bundle/macos/Aeroe.app/Contents/MacOS ]; then
-            find src-tauri/target/release/bundle/macos/Aeroe.app/Contents/MacOS -ls
+          if [ -d src-tauri/target/${{ matrix.target }}/release/bundle/macos/Aeroe.app/Contents/MacOS ]; then
+            find src-tauri/target/${{ matrix.target }}/release/bundle/macos/Aeroe.app/Contents/MacOS -ls
           else
             echo "Directory not found!"
           fi
@@ -353,7 +353,7 @@ jobs:
       - name: Fail if sidecar is missing
         if: steps.should_build.outputs.skip != 'true'
         run: |
-          if [ ! -f src-tauri/target/release/bundle/macos/Aeroe.app/Contents/MacOS/watcher-${{ matrix.target }} ]; then
+          if [ ! -f src-tauri/target/${{ matrix.target }}/release/bundle/macos/Aeroe.app/Contents/MacOS/watcher-${{ matrix.target }} ]; then
             echo "ERROR: Sidecar binary is missing from the .app bundle!"
             exit 1
           fi
@@ -363,7 +363,7 @@ jobs:
         continue-on-error: true
         id: verify_sidecar
         run: |
-          codesign --verify --deep --strict --verbose=2 src-tauri/target/release/bundle/macos/Aeroe.app/Contents/MacOS/watcher-${{ matrix.target }}
+          codesign --verify --deep --strict --verbose=2 src-tauri/target/${{ matrix.target }}/release/bundle/macos/Aeroe.app/Contents/MacOS/watcher-${{ matrix.target }}
 
       - name: Re-sign sidecar binary (workaround for Tauri CLI bug)
         if: steps.should_build.outputs.skip != 'true' && steps.verify_sidecar.outcome == 'failure'
@@ -372,8 +372,8 @@ jobs:
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
           echo "Re-signing sidecar binary due to failed verification..."
-          codesign -f --timestamp --options runtime --entitlements src-tauri/entitlements/aeroe.entitlements --sign "$APPLE_SIGNING_IDENTITY" --keychain build.keychain src-tauri/target/release/bundle/macos/Aeroe.app/Contents/MacOS/watcher-${{ matrix.target }}
-          codesign --verify --deep --strict --verbose=2 src-tauri/target/release/bundle/macos/Aeroe.app/Contents/MacOS/watcher-${{ matrix.target }}
+          codesign -f --timestamp --options runtime --entitlements src-tauri/entitlements/aeroe.entitlements --sign "$APPLE_SIGNING_IDENTITY" --keychain build.keychain src-tauri/target/${{ matrix.target }}/release/bundle/macos/Aeroe.app/Contents/MacOS/watcher-${{ matrix.target }}
+          codesign --verify --deep --strict --verbose=2 src-tauri/target/${{ matrix.target }}/release/bundle/macos/Aeroe.app/Contents/MacOS/watcher-${{ matrix.target }}
       # --- END: Sidecar Verification and Manual Codesign ---
 
       - name: Prepare artifact paths for upload
