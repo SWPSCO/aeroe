@@ -1,5 +1,5 @@
 # Workflow name displayed on GitHub
-name: Release Workflow
+name: Hosted release workflow
 
 on:
   workflow_dispatch:
