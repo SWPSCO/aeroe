@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { welcomeStore } from '$lib/stores/welcome';
 	import Button from '$lib/components/shared/Button.svelte';
+	import { onMount } from 'svelte';
 
 	let phrase: string[] = Array(24).fill('');
 	let walletName = 'Imported Wallet';
@@ -14,9 +15,25 @@
 		// To be more robust, we could subscribe to the error state.
 		loading = false; 
 	}
+
+	function goBack() {
+		// Return to the choose action splash screen
+		welcomeStore.resetForAdd();
+	}
 </script>
 
 <div class="flex flex-col gap-8 items-center justify-center">
+	<!-- Back button -->
+	<button
+		class="self-start flex items-center gap-2 px-3 py-1 border-2 border-dark font-title hover:bg-dark hover:text-white transition-colors"
+		aria-label="Back"
+		on:click={goBack}
+	>
+		<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+			<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+		</svg>
+		Back
+	</button>
 	<h1 class="text-2xl font-title">Import Wallet</h1>
 	<p class="text-md font-title text-center">
 		Enter your 24-word recovery phrase and give your wallet a name.

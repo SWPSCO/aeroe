@@ -2,7 +2,7 @@
 	import { welcomeStore } from '$lib/stores/welcome';
 	import Button from '$lib/components/shared/Button.svelte';
 
-	type LocalStep = 'save' | 'confirm' | 'name';
+	type LocalStep = 'save' | 'confirm' | 'name' | 'loading';
 	let step: LocalStep = 'save';
 
 	let confirmPhrase: string[] = Array(24).fill('');
@@ -23,6 +23,11 @@
 		if (words.length >= 24) {
 			confirmPhrase = words.slice(0,24);
 		}
+	}
+
+	function handleCreate() {
+		step = 'loading';
+		welcomeStore.createWallet(walletName);
 	}
 </script>
 
@@ -135,7 +140,7 @@
 		{/if}
 
 		<Button onclick={() => (step = 'name')} disabled={!phrasesMatch}>Continue</Button>
-	{:else}
+	{:else if step === 'name'}
 		<h1 class="text-2xl font-title">Name Your Wallet</h1>
 		<p class="text-md font-title text-center max-w-md">
 			Give your new wallet a name to easily identify it.
@@ -147,9 +152,52 @@
 				placeholder="Wallet Name"
 				class="p-2 border border-dark text-center font-title w-full max-w-xs focus:ring-1 focus:ring-highlight-orange focus:border-highlight-orange"
 			/>
-			<Button onclick={() => welcomeStore.createWallet(walletName)}>
+			<Button onclick={handleCreate} disabled={walletName.trim()===''}>
 				Create & Open Wallet
 			</Button>
+		</div>
+	{:else if step === 'loading'}
+		<div class="flex flex-col items-center gap-4">
+			<div class="animate-pulse text-2xl font-title">Opening Your Wallet...</div>
+			<svg width="200" height="140" viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
+				<style>
+					:root { --t:3s }
+					svg{overflow:visible}
+					@keyframes flip {
+						0%   { transform:perspective(600px) rotateY(0deg) }
+						50%  { transform:perspective(600px) rotateY(180deg) }
+						100% { transform:perspective(600px) rotateY(360deg) }
+					}
+					@keyframes shadow {
+						0%,100%{ transform:scaleX(1); opacity:.25 }
+						50%    { transform:scaleX(.6) translateX(10px); opacity:.1 }
+					}
+					@keyframes shine {
+						0%   { opacity:0; transform:translateX(-100%) rotateY(-45deg) }
+						50%  { opacity:.4 }
+						100% { opacity:0; transform:translateX(200%) rotateY(45deg) }
+					}
+					.card{ fill:url(#grad); rx:8; ry:8; transform-origin:80px 50px; animation:flip var(--t) cubic-bezier(.4,.2,.2,1) infinite }
+					.stripe{ fill:#ffffff }
+					.shadow{ fill:#000; filter:blur(4px); transform-origin:80px 80px; animation:shadow var(--t) ease-in-out infinite }
+					.shine{ fill:#ffffff; mix-blend-mode:overlay; opacity:0; animation:shine var(--t) ease-in-out infinite }
+				</style>
+				<defs>
+					<linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+						<stop offset="0%" stop-color="#000"/>
+						<stop offset="100%" stop-color="#222"/>
+					</linearGradient>
+				</defs>
+				<!-- ground shadow -->
+				<ellipse class="shadow" cx="80" cy="82" rx="36" ry="8" />
+
+				<!-- card body -->
+				<g class="cardGroup">
+					<rect class="card" x="40" y="25" width="80" height="50" rx="6" ry="6" />
+					<rect class="stripe" x="50" y="40" width="60" height="8" />
+					<rect class="shine" x="40" y="25" width="80" height="50" rx="6" ry="6" />
+				</g>
+			</svg>
 		</div>
 	{/if}
 </div>
