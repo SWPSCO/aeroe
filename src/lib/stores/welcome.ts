@@ -1,6 +1,7 @@
 import { writable, get } from 'svelte/store';
 import { vault, wallet as walletService } from '$lib/services';
 import { mainStore } from './main';
+import { sessionStore } from './session';
 
 export type WizardStep =
   | 'createPassword'
@@ -56,9 +57,20 @@ function createWelcomeStore() {
     }
 
     const createResult = await walletService.create(walletName, phrase);
+    console.log('createResult', createResult);
+
     if(createResult.success) {
         // This is the crucial missing step. We must load the wallet to make it active.
-        const loadResult = await walletService.load(walletName);
+        console.log('about to load wallet', walletName);
+        let loadResult;
+        try {
+          loadResult = await walletService.load(walletName);
+          console.log('loadResult', loadResult);
+        } catch (e) {
+          console.error('load threw', e);
+          update(s => ({ ...s, error: `Wallet created, but load threw: ${e}` }));
+          return;
+        }
         if (loadResult.success) {
             completeOnboarding(walletName);
         } else {
@@ -78,9 +90,19 @@ function createWelcomeStore() {
     }
 
     const createResult = await walletService.create(walletName, seedPhrase);
+    console.log('import createResult', createResult);
+
     if(createResult.success) {
         // This is the crucial missing step. We must load the wallet to make it active.
-        const loadResult = await walletService.load(walletName);
+        let loadResult;
+        try {
+          loadResult = await walletService.load(walletName);
+          console.log('import loadResult', loadResult);
+        } catch (e) {
+          console.error('import load threw', e);
+          update(s => ({ ...s, error: `Wallet imported, but load threw: ${e}` }));
+          return;
+        }
         if (loadResult.success) {
             completeOnboarding(walletName);
         } else {
@@ -100,9 +122,15 @@ function createWelcomeStore() {
   }
   
   function completeOnboarding(walletName: string) {
-    // After creating/importing, the main app state can be updated
-    mainStore.authenticate(walletName); // This will trigger the redirect to /wallet
+    // update session wallets list optimistically
+    sessionStore.addWallet(walletName);
+    mainStore.authenticate(walletName); // redirect
     set({ step: 'finished' });
+  }
+
+  // Reset the wizard for adding an extra wallet when user is already authenticated
+  function resetForAdd() {
+    set({ step: 'chooseAction', error: undefined });
   }
 
   return {
@@ -113,6 +141,7 @@ function createWelcomeStore() {
     createWallet,
     importWallet,
     completeOnboarding,
+    resetForAdd,
   };
 }
 
