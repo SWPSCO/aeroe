@@ -170,6 +170,8 @@ jobs:
     defaults:
       run:
         shell: bash -eo pipefail {0}
+    env:
+      CI: "false"
     permissions:
       contents: read
     strategy:
@@ -678,6 +680,8 @@ jobs:
         if: steps.should_build.outputs.skip != 'true' && matrix.use_native_runner
         uses: pguyot/arm-runner-action@v2.6.5
         id: tauri_build_aarch64
+        env:
+          CI: "false"
         with:
           base_image: https://dietpi.com/downloads/images/DietPi_RPi5-ARMv8-Bookworm.img.xz
           cpu: cortex-a72
@@ -745,6 +749,7 @@ jobs:
             echo "PUBLIC_AEROE_DEV_PAGE=false" > .env
             echo "Created .env file:"
             cat .env
+            osascript -e 'tell application "Finder" to activate'
             
             # Install frontend dependencies
             npm install
