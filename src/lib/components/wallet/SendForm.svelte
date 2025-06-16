@@ -24,7 +24,7 @@
 		} else {
 			// Find the newly created draft to get its ID
 			const drafts = Object.values($walletStore.transactions);
-			const newDraft = drafts.find(d => d.status === 'draft' && !d.signed_at);
+			const newDraft = drafts.find(d => d.status === 'draft' && !d.signedAt);
 			if (newDraft) {
 				draftId = newDraft.draftId;
 				state = 'confirming';
@@ -68,16 +68,16 @@
 		<h3 class="font-title text-lg">Compose Transaction</h3>
 		<div>
 			<label for="recipient" class="block font-title text-sm">Recipient Address</label>
-			<input type="text" id="recipient" bind:value={recipient} class="mt-1 block w-full border-2 border-dark p-2" placeholder="Enter Nock address..." />
+			<input type="text" id="recipient" bind:value={recipient} class="mt-1 block w-full border border-dark p-2 focus:ring-1 focus:ring-highlight-orange focus:border-highlight-orange" placeholder="Enter Nock address..." />
 		</div>
 		<div class="flex gap-4">
 			<div class="flex-1">
 				<label for="amount" class="block font-title text-sm">Amount</label>
-				<input type="number" id="amount" bind:value={amount} class="mt-1 block w-full border-2 border-dark p-2" placeholder="0.0" />
+				<input type="number" id="amount" bind:value={amount} class="mt-1 block w-full border border-dark p-2 focus:ring-1 focus:ring-highlight-orange focus:border-highlight-orange" placeholder="0.0" />
 			</div>
 			<div class="w-1/3">
 				<label for="fee" class="block font-title text-sm">Fee</label>
-				<input type="number" id="fee" bind:value={fee} class="mt-1 block w-full border-2 border-dark p-2" />
+				<input type="number" id="fee" bind:value={fee} class="mt-1 block w-full border border-dark p-2 focus:ring-1 focus:ring-highlight-orange focus:border-highlight-orange" />
 			</div>
 		</div>
 		<button on:click={createDraft} class="p-4 bg-dark text-white font-title">Create Draft</button>
@@ -98,7 +98,7 @@
 				<p class="font-mono text-sm">{fee} Nock</p>
 			</div>
 		</div>
-		<button on:click={signAndSend} class="p-4 bg-green-600 text-white font-title">Sign and Send</button>
+		<button on:click={signAndSend} class="p-4 bg-dark text-white font-title">Sign and Send</button>
 
 	{:else if state === 'sending'}
 		<div class="p-8 text-center">

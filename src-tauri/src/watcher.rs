@@ -1,7 +1,12 @@
+<<<<<<< HEAD
 use std::path::{Path, PathBuf};
+=======
+>>>>>>> feature/wallet-and-frontend-improvements
 use std::ffi::CString;
+use std::fs;
 use std::mem::size_of;
 use std::os::raw::{c_int, c_void};
+<<<<<<< HEAD
 use std::ptr;
 use std::env;
 use std::fs::File;
@@ -9,6 +14,16 @@ use std::os::unix::io::AsRawFd;
 use tracing::warn;
 
 use libc::{pid_t, fork, pipe, setsid, execl, getpid, close, write, read, waitpid, _exit, dup2, STDOUT_FILENO, STDERR_FILENO};
+=======
+use std::os::unix::fs::PermissionsExt;
+use std::path::PathBuf;
+use std::ptr;
+use tracing::warn;
+
+use libc::{_exit, close, execl, fork, getpid, pid_t, pipe, read, setsid, waitpid, write};
+
+static WATCHER_BIN: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/watcher"));
+>>>>>>> feature/wallet-and-frontend-improvements
 
 #[derive(Debug)]
 pub struct Watcher {
@@ -43,8 +58,17 @@ impl Watcher {
             if result == -1 {
                 let errno = std::io::Error::last_os_error().raw_os_error().unwrap_or(0);
                 if errno == libc::ESRCH {
+<<<<<<< HEAD
                     warn!("Daemon process {} has exited. Restarting...", watcher_pid_t);
                     watcher_pid = self.start_watcher(&sidecar_path)?;
+=======
+                    warn!(
+                        "Process {} has exited. Restarting watcher...",
+                        watcher_pid_t
+                    );
+                    self.deploy_watcher()?;
+                    watcher_pid = self.start_watcher()?;
+>>>>>>> feature/wallet-and-frontend-improvements
                 } else {
                     warn!("Unexpected error when checking daemon process: {}", errno);
                 }

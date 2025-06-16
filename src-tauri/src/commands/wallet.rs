@@ -1,5 +1,5 @@
-use tokio::sync::Mutex;
 use tauri::State;
+use tokio::sync::Mutex;
 
 use std::collections::HashMap;
 
@@ -7,7 +7,10 @@ use crate::keycrypt::Keycrypt;
 use crate::manager;
 
 #[tauri::command]
-pub async fn vault_create(state: State<'_, Mutex<Keycrypt>>, password: String) -> Result<(), String> {
+pub async fn vault_create(
+    state: State<'_, Mutex<Keycrypt>>,
+    password: String,
+) -> Result<(), String> {
     let mut keycrypt = state.lock().await;
     keycrypt.create(password)
 }
@@ -19,7 +22,11 @@ pub async fn vault_load(state: State<'_, Mutex<Keycrypt>>, password: String) -> 
 }
 
 #[tauri::command]
-pub async fn wallet_create(state: State<'_, Mutex<Keycrypt>>, wallet_name: String, seedphrase: Vec<String>) -> Result<(), String> {
+pub async fn wallet_create(
+    state: State<'_, Mutex<Keycrypt>>,
+    wallet_name: String,
+    seedphrase: Vec<String>,
+) -> Result<(), String> {
     let mut keycrypt = state.lock().await;
     keycrypt.add_wallet(wallet_name, seedphrase.join(" "))
 }

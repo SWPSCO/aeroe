@@ -6,16 +6,25 @@
 	let confirmPassword = '';
 	let loading = false; // We can keep a local loading for the button, but store handles main state
 
+	// Reactive validation flags
+	$: mismatch = confirmPassword !== '' && password.trim() !== confirmPassword.trim();
+	$: tooShort = password.trim().length > 0 && password.trim().length < 8;
+
+	// Password strength indicator (0-3)
+	$: level = password.trim().length >= 8 ? 3 : password.trim().length >= 3 ? 2 : password.trim().length > 0 ? 1 : 0;
+
+	// Determine colors for the three bar segments
+	$: barColors = (() => {
+		const base = ['bg-gray-300', 'bg-gray-300', 'bg-gray-300'];
+		if (level === 1) base[0] = 'bg-red-500';
+		else if (level === 2) base[0] = base[1] = 'bg-orange-500';
+		else if (level === 3) base[0] = base[1] = base[2] = 'bg-green-500';
+		return base;
+	})();
+
 	const handleSubmit = () => {
-		if (password.trim() !== confirmPassword.trim()) {
-			// This can be a local error shown immediately
-			alert('Passwords do not match.');
-			return;
-		}
-		if (password.trim().length < 8) {
-			alert('Password must be at least 8 characters long.');
-			return;
-		}
+		// Basic validation; UI already indicates issues
+		if (mismatch || tooShort) return;
 		loading = true;
 		welcomeStore.submitPassword(password);
 		// No need to set loading = false, the component will be unmounted on success
@@ -33,24 +42,38 @@
 			It cannot be recovered, so store it safely.
 		</p>
 		<div class="flex flex-col gap-4 w-full max-w-sm">
-			<input
-				type="password"
-				bind:value={password}
-				placeholder="Password (min. 8 characters)"
-				class="p-4 text-lg font-title text-dark border border-dark text-center"
-				onkeydown={(e) => {
-					if (e.key === 'Enter') handleSubmit();
-				}}
-			/>
-			<input
-				type="password"
-				bind:value={confirmPassword}
-				placeholder="Confirm Password"
-				class="p-4 text-lg font-title text-dark border border-dark text-center"
-				onkeydown={(e) => {
-					if (e.key === 'Enter') handleSubmit();
-				}}
-			/>
+			<div class="relative w-full inline-block">
+				<input
+					type="password"
+					bind:value={password}
+					placeholder="Password"
+					class="w-full p-4 text-lg font-title text-dark border border-dark text-center focus:ring-1 focus:ring-highlight-orange focus:border-highlight-orange"
+					onkeydown={(e) => {
+						if (e.key === 'Enter') handleSubmit();
+					}}
+				/>
+				{#if password.trim().length > 0}
+					<div class="absolute left-full ml-2 top-1/2 -translate-y-1/2 flex">
+						{#each barColors as c}
+							<div class={`w-2 h-1 ${c}`}></div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+			<div class="relative w-full inline-block">
+				<input
+					type="password"
+					bind:value={confirmPassword}
+					placeholder="Confirm Password"
+					class="w-full p-4 text-lg font-title text-dark border border-dark text-center focus:ring-1 focus:ring-highlight-orange focus:border-highlight-orange"
+					onkeydown={(e) => {
+						if (e.key === 'Enter') handleSubmit();
+					}}
+				/>
+				{#if mismatch}
+					<span class="absolute left-full ml-2 top-1/2 -translate-y-1/2 text-red-500 text-sm whitespace-nowrap">*Passwords do not match</span>
+				{/if}
+			</div>
 			<Button
 				onclick={handleSubmit}
 				disabled={loading || password.trim().length < 8 || password.trim() !== confirmPassword.trim()}

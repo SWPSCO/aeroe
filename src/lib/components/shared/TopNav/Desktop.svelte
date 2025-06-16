@@ -17,21 +17,6 @@
     <DesktopItem route="/nockpool" active={$page.route.id?.startsWith('/nockpool')}>Nockpool</DesktopItem> -->
     <DesktopItem route="/explorer" active={$page.route.id?.startsWith('/explorer')}>Explorer</DesktopItem>
     
-    <div class="flex-1 border-b-4 border-light"></div>
 
-    <div class="flex items-center gap-4 text-sm font-title pr-4 border-b-4 border-light">
-        {#if $walletStore.status === 'loading'}
-            <div class="text-gray-500 animate-pulse">Syncing...</div>
-        {:else if $walletStore.status === 'loaded'}
-            <div class="flex items-center gap-2">
-                <div class="w-2 h-2 rounded-full bg-green-500"></div>
-                <div class="text-dark">{$sessionStore.activeWalletName}</div>
-            </div>
-        {:else if $walletStore.status === 'error'}
-            <div class="flex items-center gap-2">
-                <div class="w-2 h-2 rounded-full bg-red-500"></div>
-                <div class="text-red-500">Error</div>
-            </div>
-        {/if}
-    </div>
+
 </nav>

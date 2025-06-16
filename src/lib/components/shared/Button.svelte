@@ -18,7 +18,7 @@
     const baseClasses = "py-4 px-8 font-title transition-colors duration-150 disabled:opacity-50";
 
     const variantClasses = {
-        primary: "bg-dark text-white hover:bg-gray-700",
+        primary: "bg-dark text-white hover:enabled:text-highlight-orange",
         secondary: "bg-gray-200 text-dark hover:bg-gray-300",
     };
 </script>

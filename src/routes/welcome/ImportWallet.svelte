@@ -26,7 +26,7 @@
 		<input
 			type="text"
 			bind:value={walletName}
-			class="text-lg font-title text-dark border border-dark p-3 text-center w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+			class="text-lg font-title text-dark border border-dark p-3 text-center w-full focus:ring-1 focus:ring-highlight-orange focus:border-highlight-orange"
 			placeholder="Wallet Name"
 			aria-label="Wallet Name"
 		/>
@@ -41,7 +41,7 @@
 				<input
 					type="text"
 					bind:value={phrase[index]}
-					class="text-sm font-title text-dark border border-dark p-2 text-center w-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+					class="text-sm font-title text-dark border border-dark p-2 text-center w-full focus:ring-1 focus:ring-highlight-orange focus:border-highlight-orange"
 					placeholder={`Word ${index + 1}`}
 					aria-label={`Word ${index + 1} of recovery phrase`}
 				/>

@@ -7,7 +7,6 @@
 	import TopNav from '$lib/components/shared/TopNav.svelte';
 	import ContentArea from '$lib/components/ContentArea.svelte';
 	import FeatureArea from '$lib/components/FeatureArea.svelte';
-	import Footer from '$lib/components/Footer.svelte';
 
 	let { children } = $props();
 
@@ -41,6 +40,5 @@
 				{@render children()}
 			</FeatureArea>
 		</ContentArea>
-		<Footer />
 	{/if}
 </MainArea>

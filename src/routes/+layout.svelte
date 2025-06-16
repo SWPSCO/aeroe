@@ -2,6 +2,9 @@
   import '../app.css';
   import { mainStore } from '$lib/stores/main';
   import { onMount } from 'svelte';
+  import Footer from '$lib/components/Footer.svelte';
+  import MinimalTopNav from '$lib/components/shared/TopNav/Minimal.svelte';
+  import { page } from '$app/stores';
 
   onMount(() => {
     mainStore.boot();
@@ -20,5 +23,13 @@
     </div>
   </div>
 {:else}
-  <slot />
+  <div class="flex flex-col h-screen">
+    {#if !$page.url.pathname.startsWith('/wallet') && !$page.url.pathname.startsWith('/mining') && !$page.url.pathname.startsWith('/explorer')}
+      <MinimalTopNav />
+    {/if}
+    <div class="flex flex-col flex-1 min-h-0 overflow-hidden bg-light">
+      <slot />
+    </div>
+    <Footer />
+  </div>
 {/if} 

@@ -35,6 +35,7 @@ function createMainStore() {
     // If terms are accepted, proceed to check vault status
     const statusRes = await aeroe.status();
     if (statusRes.success && statusRes.data) {
+        sessionStore.setWallets(statusRes.data.wallets || []);
         if (statusRes.data.vaultExists) {
             store.set({ name: 'unauthenticated' });
             goto('/login');

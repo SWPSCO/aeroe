@@ -22,19 +22,13 @@ pub async fn check_update(app_handle: &AppHandle) {
     let check_result = updater.check().await;
     match check_result {
         Ok(Some(update)) => {
-            let _ = window.emit("update", UpdateInfo::new(
-                true,
-                update.version,
-            ));
-        },
+            let _ = window.emit("update", UpdateInfo::new(true, update.version));
+        }
         Ok(None) => {
-            let _ = window.emit("update", UpdateInfo::new(
-                false,
-                "".to_string(),
-            ));
-        },
+            let _ = window.emit("update", UpdateInfo::new(false, "".to_string()));
+        }
         Err(e) => {
             warn!("Update checker: error during update check: {:?}", e);
         }
     }
-} 
+}
