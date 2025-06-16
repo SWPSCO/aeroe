@@ -34,10 +34,13 @@ impl NockchainNode {
     }
     pub async fn start_master(&mut self) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
-        self.command_tx.send(NockchainCommand {
-            command: NockchainRequest::StartMaster,
-            response: tx,
-        }).await.map_err(|e| e.to_string())?;
+        self.command_tx
+            .send(NockchainCommand {
+                command: NockchainRequest::StartMaster,
+                response: tx,
+            })
+            .await
+            .map_err(|e| e.to_string())?;
 
         let res = rx.await.map_err(|e| e.to_string())?;
         match res {
@@ -50,10 +53,13 @@ impl NockchainNode {
     }
     pub async fn stop_master(&mut self) -> Result<(), String> {
         let (tx, rx) = oneshot::channel();
-        self.command_tx.send(NockchainCommand {
-            command: NockchainRequest::StopMaster,
-            response: tx,
-        }).await.map_err(|e| e.to_string())?;
+        self.command_tx
+            .send(NockchainCommand {
+                command: NockchainRequest::StopMaster,
+                response: tx,
+            })
+            .await
+            .map_err(|e| e.to_string())?;
 
         let res = rx.await.map_err(|e| e.to_string())?;
         match res {
@@ -85,15 +91,21 @@ impl NockchainNode {
 
     pub async fn get_status(&mut self) -> Result<(bool, u64), String> {
         let (tx, rx) = oneshot::channel();
-        self.command_tx.send(NockchainCommand {
-            command: NockchainRequest::GetStatus,
-            response: tx,
-        }).await.map_err(|e| e.to_string())?;
+        self.command_tx
+            .send(NockchainCommand {
+                command: NockchainRequest::GetStatus,
+                response: tx,
+            })
+            .await
+            .map_err(|e| e.to_string())?;
 
         let res = rx.await.map_err(|e| e.to_string())?;
         match res {
             Ok(res) => match res {
-                NockchainResponse::Status { master_running, num_workers } => Ok((master_running, num_workers)),
+                NockchainResponse::Status {
+                    master_running,
+                    num_workers,
+                } => Ok((master_running, num_workers)),
                 _ => Err("invalid response".to_string()),
             },
             Err(e) => Err(e.to_string()),

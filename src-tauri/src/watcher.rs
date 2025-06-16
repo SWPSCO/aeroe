@@ -1,13 +1,13 @@
-use std::path::PathBuf;
 use std::ffi::CString;
+use std::fs;
 use std::mem::size_of;
 use std::os::raw::{c_int, c_void};
-use std::ptr;
-use std::fs;
 use std::os::unix::fs::PermissionsExt;
+use std::path::PathBuf;
+use std::ptr;
 use tracing::warn;
 
-use libc::{pid_t, fork, pipe, setsid, execl, getpid, close, write, read, waitpid, _exit};
+use libc::{_exit, close, execl, fork, getpid, pid_t, pipe, read, setsid, waitpid, write};
 
 static WATCHER_BIN: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/watcher"));
 
@@ -39,7 +39,10 @@ impl Watcher {
                 // If ESRCH, the process does not exist
                 let errno = std::io::Error::last_os_error().raw_os_error().unwrap_or(0);
                 if errno == libc::ESRCH {
-                    warn!("Process {} has exited. Restarting watcher...", watcher_pid_t);
+                    warn!(
+                        "Process {} has exited. Restarting watcher...",
+                        watcher_pid_t
+                    );
                     self.deploy_watcher()?;
                     watcher_pid = self.start_watcher()?;
                 } else {

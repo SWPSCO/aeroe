@@ -61,6 +61,7 @@ zkvm-jetpack = { git = "https://github.com/swpsco/nockchain.git", rev = "bb24a80
 nockvm_macros = { git = "https://github.com/swpsco/nockchain.git", rev = "bb24a8045981df4a7b8a3cfc8180a3fd9b7819b6", package = "nockvm_macros" }
 nockchain-libp2p-io = { git = "https://github.com/swpsco/nockchain.git", rev = "bb24a8045981df4a7b8a3cfc8180a3fd9b7819b6", package = "nockchain-libp2p-io" }
 futures = "0.3.31"
+tauri-plugin-clipboard-manager = "2.2.2"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
