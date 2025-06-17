@@ -7,7 +7,7 @@
 
 <div class="h-screen w-screen flex flex-col items-center justify-center gap-8">
 	{#if $loginStore.state === 'pending'}
-		<div class="animate-pulse text-2xl font-title">Unlocking Vault...</div>
+		<div class="animate-pulse text-2xl font-title mb-4">Unlocking Vault...</div>
     <div>
     <svg width="160" height="100" viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
       <style>
