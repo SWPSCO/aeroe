@@ -7,7 +7,7 @@
 	import Transactions from './Transactions.svelte';
 </script>
 
-<div class="flex flex-col gap-4 m-8">  
+<div class="flex flex-col gap-4 m-8 overflow-y-auto">  
     <Aeroe />
     <Terms />
     <Vault />

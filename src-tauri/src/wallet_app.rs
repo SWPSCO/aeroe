@@ -23,13 +23,13 @@ impl WalletApp {
     ) -> Result<Vec<NounSlab>, String> {
         let requires_sync = match command {
             // Commands that DON'T need sync
-            Commands::PeekBalance
+            Commands::PeekBalance { .. }
             | Commands::UpdateState
             | Commands::PeekSeedphrase
             | Commands::PeekMasterPubkey
             | Commands::PeekState
             | Commands::PeekReceiveAddress
-            | Commands::PeekNotes
+            | Commands::PeekNotes { .. }
             | Commands::Keygen
             | Commands::DeriveChild { .. }
             | Commands::ImportKeys { .. }
@@ -59,8 +59,8 @@ impl WalletApp {
                 let (noun, _op) = Wallet::peek_seedphrase().map_err(|e| e.to_string())?;
                 return Ok(Self::do_peek(noun, data_dir).await?);
             }
-            Commands::PeekBalance => {
-                let (noun, _op) = Wallet::peek_balance().map_err(|e| e.to_string())?;
+            Commands::PeekBalance { pubkey } => {
+                let (noun, _op) = Wallet::peek_balance(&pubkey).map_err(|e| e.to_string())?;
                 return Ok(Self::do_peek(noun, data_dir).await?);
             }
             Commands::PeekMasterPubkey => {
@@ -79,8 +79,8 @@ impl WalletApp {
                 let (noun, _op) = Wallet::peek_pubkeys().map_err(|e| e.to_string())?;
                 return Ok(Self::do_peek(noun, data_dir).await?);
             }
-            Commands::PeekNotes => {
-                let (noun, _op) = Wallet::peek_notes().map_err(|e| e.to_string())?;
+            Commands::PeekNotes { pubkey } => {
+                let (noun, _op) = Wallet::peek_notes(&pubkey).map_err(|e| e.to_string())?;
                 return Ok(Self::do_peek(noun, data_dir).await?);
             }
 
