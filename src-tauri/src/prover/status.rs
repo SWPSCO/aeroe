@@ -4,7 +4,7 @@ use nockapp::driver::IODriverFn;
 use nockapp::noun::slab::NounSlab;
 use nockapp::utils::make_tas;
 
-use nockvm::noun::{D, T, Noun};
+use nockvm::noun::{Noun, D, T};
 
 use crate::manager::{NockchainPeek, NockchainStatus};
 
@@ -45,7 +45,6 @@ pub fn status_driver(
             }
             #[allow(unreachable_code)]
             Ok(())
-
         })
     })
 }

@@ -1,16 +1,16 @@
 // keycrypt.rs
 
+use std::collections::HashMap;
 use std::fs;
 use std::io::{Cursor, Read};
 use std::path::PathBuf;
-use std::collections::HashMap;
 
-use argon2::{Argon2, Params, Algorithm, Version};
-use chacha20poly1305::{XChaCha20Poly1305, Key, XNonce};
+use argon2::{Algorithm, Argon2, Params, Version};
+use base64::{engine::general_purpose, Engine as _};
 use chacha20poly1305::aead::{Aead, KeyInit};
+use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
 use rand::rngs::OsRng;
 use rand_core::TryRngCore;
-use base64::{engine::general_purpose, Engine as _};
 
 /// Magic header to identify our file format/version.
 const HEADER_MAGIC: &[u8] = b"79CLOVER"; // 8 bytes
@@ -112,7 +112,9 @@ impl Keycrypt {
 
         // 2) Generate a random salt
         let mut salt = [0u8; SALT_LEN];
-        OsRng.try_fill_bytes(&mut salt).map_err(|e| format!("Failed to fill salt: {e}"))?;
+        OsRng
+            .try_fill_bytes(&mut salt)
+            .map_err(|e| format!("Failed to fill salt: {e}"))?;
 
         // 3) Derive a 32‐byte key via Argon2id
         //    Params: memory = 1024 * 1024 KiB = 1024 MiB, iterations = 8, parallelism = 1
@@ -127,7 +129,9 @@ impl Keycrypt {
         // 4) Initialize XChaCha20‐Poly1305 and generate a random nonce
         let cipher = XChaCha20Poly1305::new(Key::from_slice(&key_bytes));
         let mut nonce_bytes = [0u8; NONCE_LEN];
-        OsRng.try_fill_bytes(&mut nonce_bytes).map_err(|e| format!("Failed to fill nonce: {e}"))?;
+        OsRng
+            .try_fill_bytes(&mut nonce_bytes)
+            .map_err(|e| format!("Failed to fill nonce: {e}"))?;
         let nonce = XNonce::from_slice(&nonce_bytes);
 
         // 5) Encrypt + authenticate
@@ -157,7 +161,8 @@ impl Keycrypt {
             .map_err(|e| format!("Failed to read encrypted file: {}", e))?;
 
         // 2) Decode Base64 → raw payload
-        let payload = general_purpose::STANDARD.decode(&b64_payload)
+        let payload = general_purpose::STANDARD
+            .decode(&b64_payload)
             .map_err(|e| format!("Base64 decoding failed: {}", e))?;
 
         // Use a Cursor to parse out header, salt, nonce, and ciphertext

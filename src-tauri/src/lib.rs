@@ -1,28 +1,29 @@
 mod commands;
-mod manager;
-mod wallet_app;
-mod watcher;
 mod keycrypt;
+mod manager;
 mod prover;
 mod services;
 mod update_checker;
+mod wallet_app;
+mod watcher;
 
 use tokio::sync::Mutex;
 
 use tauri::Manager;
 
-use crate::watcher::Watcher;
-use crate::keycrypt::Keycrypt;
 use crate::commands::*;
+use crate::keycrypt::Keycrypt;
+use crate::watcher::Watcher;
 
+use crate::commands::terms::TermsState;
 use std::time::Duration;
 use tracing::error;
-use crate::commands::terms::TermsState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub async fn run() {
     nockvm::check_endian();
     tauri::Builder::default()
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .setup(move |app| {
@@ -44,10 +45,12 @@ pub async fn run() {
             let keycrypt_dir = data_dir.join("vault");
 
             // --- Nockchain Status Receiver ---
-            let (status_receiver_tx, status_receiver_rx) = tokio::sync::mpsc::channel::<manager::NockchainStatus>(128);
+            let (status_receiver_tx, status_receiver_rx) =
+                tokio::sync::mpsc::channel::<manager::NockchainStatus>(128);
 
             // --- Nockchain Status Caller ---
-            let (status_caller_tx, status_caller_rx) = tokio::sync::broadcast::channel::<manager::NockchainPeek>(128);
+            let (status_caller_tx, status_caller_rx) =
+                tokio::sync::broadcast::channel::<manager::NockchainPeek>(128);
 
             // --- Wallet Service ---
             let (wallet_tx, wallet_rx) = tokio::sync::mpsc::channel::<manager::WalletCommand>(128);
@@ -58,7 +61,8 @@ pub async fn run() {
             );
 
             // --- Nockchain Service ---
-            let (nockchain_tx, nockchain_rx) = tokio::sync::mpsc::channel::<manager::NockchainCommand>(128);
+            let (nockchain_tx, nockchain_rx) =
+                tokio::sync::mpsc::channel::<manager::NockchainCommand>(128);
             services::spawn_nockchain_service(
                 nockchain_rx,
                 status_receiver_tx,
@@ -66,10 +70,13 @@ pub async fn run() {
                 nockchain_dir.clone(),
             );
 
-            
             // --- Application State Management ---
             app.manage(Mutex::new(TermsState::new(&app.handle())));
-            app.manage(Mutex::new(manager::Wallet::new(wallet_tx, wallet_dir.clone(), draft_dir.clone())));
+            app.manage(Mutex::new(manager::Wallet::new(
+                wallet_tx,
+                wallet_dir.clone(),
+                draft_dir.clone(),
+            )));
             app.manage(Mutex::new(manager::NockchainNode::new(nockchain_tx)));
             app.manage(Mutex::new(Keycrypt::new(keycrypt_dir)));
             app.manage(Mutex::new(status_receiver_rx));
@@ -86,7 +93,8 @@ pub async fn run() {
             // --- Start Master Node ---
             let master_node_app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                let nockchain_node = master_node_app_handle.state::<Mutex<manager::NockchainNode>>();
+                let nockchain_node =
+                    master_node_app_handle.state::<Mutex<manager::NockchainNode>>();
                 let mut nockchain_node = nockchain_node.lock().await;
                 if let Err(e) = nockchain_node.start_master().await {
                     error!("Failed to start master node: {}", e);
@@ -97,7 +105,8 @@ pub async fn run() {
             // receives status from nockchain node
             let status_app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                let status_receiver_rx = status_app_handle.state::<Mutex<tokio::sync::mpsc::Receiver<manager::NockchainStatus>>>();
+                let status_receiver_rx = status_app_handle
+                    .state::<Mutex<tokio::sync::mpsc::Receiver<manager::NockchainStatus>>>();
                 let wallet_app = status_app_handle.state::<Mutex<manager::Wallet>>();
                 let mut status_receiver_rx = status_receiver_rx.lock().await;
                 loop {
@@ -127,7 +136,8 @@ pub async fn run() {
             // calls nockchain node to get status
             let status_app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                let status_caller_tx = status_app_handle.state::<Mutex<tokio::sync::broadcast::Sender<manager::NockchainPeek>>>();
+                let status_caller_tx = status_app_handle
+                    .state::<Mutex<tokio::sync::broadcast::Sender<manager::NockchainPeek>>>();
                 loop {
                     {
                         let status_caller_tx = status_caller_tx.lock().await;

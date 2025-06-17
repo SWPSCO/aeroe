@@ -5,8 +5,8 @@ use nockvm::noun::Noun;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 
-use std::path::PathBuf;
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -108,11 +108,15 @@ impl Wallet {
                 if latest_block == new_height {
                     return Ok(());
                 }
-            },
+            }
             None => {}
         }
 
-        tracing::info!("current block id: {:?}, new block id: {:?}", self.block_height, new_height);
+        tracing::info!(
+            "current block id: {:?}, new block id: {:?}",
+            self.block_height,
+            new_height
+        );
         self.block_height = Some(new_height);
 
         if let Some(last_sync) = self.last_sync {
@@ -139,7 +143,11 @@ impl Wallet {
         };
         Ok(pubkey)
     }
-    pub async fn create_tx(&mut self, transactions: Vec<TransactionEntry>, fee: u64) -> Result<NockchainTxMeta, String> {
+    pub async fn create_tx(
+        &mut self,
+        transactions: Vec<TransactionEntry>,
+        fee: u64,
+    ) -> Result<NockchainTxMeta, String> {
         // if amount of transactions is 0, return error
         if transactions.is_empty() {
             return Err("no transactions".to_string());
@@ -161,15 +169,20 @@ impl Wallet {
         let required_amount = total_amount + fee;
         let mut selected_notes = Vec::new();
         let mut selected_amount = 0u64;
-        
+
         // Convert notes to (value, note) pairs and sort by value descending for greedy selection
-        let mut note_values: Vec<(u64, &Note)> = notes.iter()
+        let mut note_values: Vec<(u64, &Note)> = notes
+            .iter()
             .filter_map(|note| {
-                note.assets.replace(".", "").parse::<u64>().ok().map(|value| (value, note))
+                note.assets
+                    .replace(".", "")
+                    .parse::<u64>()
+                    .ok()
+                    .map(|value| (value, note))
             })
             .collect();
         note_values.sort_by(|a, b| b.0.cmp(&a.0)); // Sort descending by value
-        
+
         // Greedy selection: pick largest notes first until we have enough
         for (value, note) in note_values {
             if selected_amount >= required_amount {
@@ -178,22 +191,25 @@ impl Wallet {
             selected_notes.push(note);
             selected_amount += value;
         }
-        
+
         // Check if we have enough funds in available notes
         if selected_amount < required_amount {
             return Err("insufficient funds in available notes".to_string());
         }
 
         // construct simple-spend
-        let note_names = selected_notes.iter()
+        let note_names = selected_notes
+            .iter()
             .map(|note| format!("[{} {}]", note.first, note.last))
             .collect::<Vec<String>>()
             .join(",");
-        let recipients = transactions.iter()
+        let recipients = transactions
+            .iter()
             .map(|tx| format!("[1 {}]", tx.recipient))
             .collect::<Vec<String>>()
             .join(",");
-        let gifts = transactions.iter()
+        let gifts = transactions
+            .iter()
             .map(|tx| tx.amount.to_string())
             .collect::<Vec<String>>()
             .join(",");
@@ -213,17 +229,20 @@ impl Wallet {
         std::fs::create_dir_all(&wallet_draft_dir).map_err(|e| e.to_string())?;
 
         let draft_file_path = wallet_draft_dir.join(format!("{}.draft", draft_name.clone()));
-        let file_path = draft_file_path.to_str()
+        let file_path = draft_file_path
+            .to_str()
             .ok_or("draft file path contains invalid UTF-8".to_string())?
             .to_string();
 
-        let _ = self.send_command(Commands::AeroeSpend {
-            names: note_names,
-            recipients,
-            gifts,
-            fee,
-            file_path: file_path.clone(),
-        }).await?;
+        let _ = self
+            .send_command(Commands::AeroeSpend {
+                names: note_names,
+                recipients,
+                gifts,
+                fee,
+                file_path: file_path.clone(),
+            })
+            .await?;
 
         let draft_id = draft_name.clone();
 
@@ -236,10 +255,13 @@ impl Wallet {
             broadcasted_at: None,
             status: NockchainTxStatus::Draft,
         };
-        self.drafts.insert(draft_name.clone(), NockchainTx {
-            metadata: draft_meta.clone(),
-            location: file_path,
-        });
+        self.drafts.insert(
+            draft_name.clone(),
+            NockchainTx {
+                metadata: draft_meta.clone(),
+                location: file_path,
+            },
+        );
         Ok(draft_meta)
     }
     pub async fn sign_tx(&mut self, draft_id: String) -> Result<NockchainTxMeta, String> {
@@ -250,14 +272,16 @@ impl Wallet {
             };
             draft.location.clone()
         };
-        
+
         let signed_file_path = file_path.replace(".draft", ".signed");
         // send command to sign the draft
-        let _ = self.send_command(Commands::SignAeroeTx {
-            draft: file_path,
-            index: None,
-            file_path: signed_file_path.clone(),
-        }).await?;
+        let _ = self
+            .send_command(Commands::SignAeroeTx {
+                draft: file_path,
+                index: None,
+                file_path: signed_file_path.clone(),
+            })
+            .await?;
 
         // Now update the draft
         let Some(draft) = self.drafts.get_mut(&draft_id) else {
@@ -265,11 +289,13 @@ impl Wallet {
         };
         draft.metadata.status = NockchainTxStatus::Signed;
         draft.location = signed_file_path;
-        draft.metadata.signed_at = Some(std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-            .to_string());
+        draft.metadata.signed_at = Some(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+                .to_string(),
+        );
         Ok(draft.metadata.clone())
     }
     pub async fn send_tx(&mut self, draft_id: String) -> Result<NockchainTxMeta, String> {
@@ -292,16 +318,20 @@ impl Wallet {
             return Err("draft not found".to_string());
         };
         draft.metadata.status = NockchainTxStatus::Pending;
-        draft.metadata.broadcasted_at = Some(std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-            .to_string());
+        draft.metadata.broadcasted_at = Some(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+                .to_string(),
+        );
         Ok(draft.metadata.clone())
     }
     pub async fn list_unsent_txs(&self) -> Result<HashMap<String, NockchainTxMeta>, String> {
         // self.drafts but only the key and metadata
-        let unsent_txs = self.drafts.iter()
+        let unsent_txs = self
+            .drafts
+            .iter()
             .map(|(k, v)| (k.clone(), v.metadata.clone()))
             .collect::<HashMap<String, NockchainTxMeta>>();
         Ok(unsent_txs)
@@ -369,16 +399,17 @@ impl Wallet {
             .as_atom()
             .map_err(|_| "notes: notes is not an atom".to_string())?;
         let notes_bytes = notes_atom.as_ne_bytes();
-        
+
         // Trim null bytes and other trailing characters
-        let trimmed_bytes = notes_bytes.iter()
+        let trimmed_bytes = notes_bytes
+            .iter()
             .position(|&b| b == 0)
             .map(|pos| &notes_bytes[..pos])
             .unwrap_or(notes_bytes);
-        
+
         let notes_vec: Vec<Note> = serde_json::from_slice(trimmed_bytes)
             .map_err(|e| format!("notes: failed to deserialize notes from bytes: {}", e))?;
-        
+
         Ok(notes_vec)
     }
     //
@@ -389,7 +420,9 @@ impl Wallet {
         Ok(())
     }
     pub async fn gen_master_privkey(&self, seedphrase: String) -> Result<(), String> {
-        let _ = self.send_command(Commands::GenMasterPrivkey { seedphrase }).await?;
+        let _ = self
+            .send_command(Commands::GenMasterPrivkey { seedphrase })
+            .await?;
         Ok(())
     }
     pub async fn update_state(&mut self) -> Result<(), String> {
@@ -432,11 +465,11 @@ impl Wallet {
         std::hash::Hash::hash(seed, &mut hasher);
         std::hash::Hash::hash(&std::thread::current().id(), &mut hasher);
         let hash1 = std::hash::Hasher::finish(&hasher);
-        
+
         let mut hasher2 = std::collections::hash_map::DefaultHasher::new();
         std::hash::Hash::hash(&(hash1 ^ 0xdeadbeef), &mut hasher2);
         let hash2 = std::hash::Hasher::finish(&hasher2);
-        
+
         let draft_name = format!("{:016x}{:016x}", hash1, hash2);
         draft_name
     }

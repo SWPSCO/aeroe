@@ -16,7 +16,10 @@ pub async fn node_stop_master(node: State<'_, Mutex<NockchainNode>>) -> Result<(
 }
 
 #[tauri::command]
-pub async fn node_peek(status_caller_tx: State<'_, Mutex<tokio::sync::broadcast::Sender<NockchainPeek>>>, command: String) -> Result<(), String> {
+pub async fn node_peek(
+    status_caller_tx: State<'_, Mutex<tokio::sync::broadcast::Sender<NockchainPeek>>>,
+    command: String,
+) -> Result<(), String> {
     let peek_command = match command.as_str() {
         "height" => NockchainPeek::Height,
         "heavy-summary" => NockchainPeek::HeavySummary,

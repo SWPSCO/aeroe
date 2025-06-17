@@ -1,24 +1,24 @@
-use crate::wallet_app::WalletApp;
+use crate::manager::{
+    NockchainCommand, NockchainPeek, NockchainRequest, NockchainResponse, NockchainStatus,
+    WalletCommand,
+};
 use crate::prover::Prover;
+use crate::wallet_app::WalletApp;
+use futures::FutureExt;
 use std::panic::AssertUnwindSafe;
 use std::path::PathBuf;
-use futures::FutureExt;
-use crate::manager::{
-    WalletCommand,
-    NockchainResponse,
-    NockchainRequest,
-    NockchainCommand,
-    NockchainStatus,
-    NockchainPeek,
-};
-use tracing::{ info, warn, error };
+use tracing::{error, info, warn};
 
 #[derive(Clone, Debug)]
 enum ProverCommand {
     Shutdown,
 }
 
-pub fn spawn_wallet_service(mut wallet_rx: tokio::sync::mpsc::Receiver<WalletCommand>, wallet_dir: PathBuf, master_socket: PathBuf) {
+pub fn spawn_wallet_service(
+    mut wallet_rx: tokio::sync::mpsc::Receiver<WalletCommand>,
+    wallet_dir: PathBuf,
+    master_socket: PathBuf,
+) {
     std::thread::spawn(move || {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -31,29 +31,42 @@ pub fn spawn_wallet_service(mut wallet_rx: tokio::sync::mpsc::Receiver<WalletCom
                 let command_name = format!("{:?}", cmd.command);
                 info!("[Wallet Service] Received command: {}", command_name);
 
-                let future = AssertUnwindSafe(WalletApp::run(cmd.command, wallet_dir.clone(), master_socket.clone()));
-                
+                let future = AssertUnwindSafe(WalletApp::run(
+                    cmd.command,
+                    wallet_dir.clone(),
+                    master_socket.clone(),
+                ));
+
                 match future.catch_unwind().await {
                     Ok(run_result) => {
                         // Task completed successfully (or with a normal error)
                         if cmd.response.send(run_result).is_err() {
-                            warn!("[Wallet Service] Command {}: Receiver dropped.", command_name);
+                            warn!(
+                                "[Wallet Service] Command {}: Receiver dropped.",
+                                command_name
+                            );
                         }
-                    },
+                    }
                     Err(panic_payload) => {
                         // Task panicked
-                        let panic_message = if let Some(s) = panic_payload.downcast_ref::<&'static str>() {
-                            s.to_string()
-                        } else if let Some(s) = panic_payload.downcast_ref::<String>() {
-                            s.clone()
-                        } else {
-                            "Unknown panic reason".to_string()
-                        };
+                        let panic_message =
+                            if let Some(s) = panic_payload.downcast_ref::<&'static str>() {
+                                s.to_string()
+                            } else if let Some(s) = panic_payload.downcast_ref::<String>() {
+                                s.clone()
+                            } else {
+                                "Unknown panic reason".to_string()
+                            };
 
-                        error!("[Wallet Service] Command {} panicked: {}", command_name, &panic_message);
-                        
+                        error!(
+                            "[Wallet Service] Command {} panicked: {}",
+                            command_name, &panic_message
+                        );
+
                         // Inform the caller about the panic
-                        let _ = cmd.response.send(Err(format!("Command panicked: {}", panic_message)));
+                        let _ = cmd
+                            .response
+                            .send(Err(format!("Command panicked: {}", panic_message)));
                     }
                 }
             }
@@ -187,7 +200,7 @@ async fn start_prover(
             .enable_all()
             .build()
             .unwrap();
-        
+
         runtime.block_on(async move {
             let prover_id = id.clone();
             info!("[Prover {}] Starting...", prover_id);
@@ -198,7 +211,7 @@ async fn start_prover(
                 status_receiver_tx,
                 status_caller_rx,
             );
-            
+
             tokio::select! {
                 res = nc.start() => {
                     if let Err(e) = res {
