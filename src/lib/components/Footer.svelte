@@ -18,19 +18,12 @@
   })
   let downloading = $state(false)
   
-  // Separate node type and connection status
   let nodeType: 'onboard' | 'external' = $state('onboard')
   let isConnected = $state(false)
   let externalPath: string = $state('')
   let showExternalDialog = $state(false)
+  let showDropdown = $state(false)
   let isConnecting = $state(false)
-
-  // Derived status text
-  const nodeStatusText = $derived(() => {
-    const type = nodeType === 'onboard' ? 'Onboard' : 'External';
-    const status = isConnected ? 'connected' : 'disconnected';
-    return `${type} node ${status}`;
-  });
 
   const updateApp = async () => {
       downloading = true;
@@ -74,7 +67,6 @@
         
         console.log('About to call node.getStatus...');
         
-        // Check the backend state after connection
         const status = await node.getStatus();
         console.log('getStatus after connect:', status);
         
@@ -119,74 +111,127 @@
   }
 
   const disconnect = async () => {
+      console.log('disconnect() called, nodeType:', nodeType);
       try {
           if (nodeType === 'onboard') {
+              console.log('Calling node.stopMaster()');
               await node.stopMaster();
+          } else if (nodeType === 'external') {
+              console.log('Calling node.disconnectExternal()');
+              await node.disconnectExternal();
           }
-          // Check backend state after disconnect
+          
+          console.log('Disconnect command completed, checking status...');
           const status = await node.getStatus();
+          console.log('Status after disconnect:', status);
+          
           if (status.success && status.data) {
               nodeType = status.data.mode === 'external' ? 'external' : 'onboard';
               isConnected = status.data.connected;
+              console.log('Updated state - nodeType:', nodeType, 'isConnected:', isConnected);
           }
       } catch (error) {
           console.error('Failed to disconnect:', error);
       }
   }
 
-  onMount(async () => {
-      version = await getVersion() || "unknown"
-      const updateListener = await listen<{ hasUpdate: boolean; updateVersion: string | null }>('update', (event) => {
-          updateInfo = event.payload;
-      });
-      const updateDownloadedListener = await listen<{ downloaded: number; total: number }>('update_downloaded', (event) => {
-          progress = event.payload;
-      });
+  onMount(() => {
+      const init = async () => {
+          version = await getVersion() || "unknown"
+          const updateListener = await listen<{ hasUpdate: boolean; updateVersion: string | null }>('update', (event) => {
+              updateInfo = event.payload;
+          });
+          const updateDownloadedListener = await listen<{ downloaded: number; total: number }>('update_downloaded', (event) => {
+              progress = event.payload;
+          });
+          
+          const status = await node.getStatus();
+          if (status.success && status.data) {
+              nodeType = status.data.mode === 'external' ? 'external' : 'onboard';
+              isConnected = status.data.connected;
+          }
+      };
+      
+      init();
+
+      // Click outside to close dropdown
+      const handleClickOutside = (event: MouseEvent) => {
+          if (showDropdown && !(event.target as Element)?.closest('.relative')) {
+              showDropdown = false;
+          }
+      };
+      document.addEventListener('click', handleClickOutside);
+      
+      return () => {
+          document.removeEventListener('click', handleClickOutside);
+      };
   })
 </script>
 
 <div bind:clientWidth={width} class="h-[42px] px-4 bg-dark flex items-center gap-4">
-  <!-- Node Status -->
+  <!-- Node Status with Dropdown -->
   <div class="flex items-center gap-2">
       <!-- Status Indicator -->
       <div class="w-2 h-2 rounded-full {isConnected ? 'bg-green-500' : 'bg-red-500'} animate-pulse"></div>
       
-      <!-- Status Text -->
-      <span class="text-light font-title text-xs">
-          {nodeStatusText()}
-      </span>
-      
-      <!-- Connection Controls -->
-      {#if !isConnected}
+      <!-- Node Type Dropdown -->
+      <div class="relative">
           <button 
-              class="text-light hover:text-highlight-orange font-title text-xs border border-light hover:border-highlight-orange px-1"
-              onclick={startLocal}
+              class="text-light hover:text-highlight-orange font-title text-xs border border-light hover:border-highlight-orange px-2 py-1 flex items-center gap-1"
+              onclick={() => showDropdown = !showDropdown}
               disabled={isConnecting}
           >
-              {isConnecting ? '...' : 'start'}
+              {nodeType === 'onboard' ? 'Local' : 'External'}
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M7 10l5 5 5-5z"/>
+              </svg>
           </button>
-      {:else}
+          
+          {#if showDropdown}
+          <div class="absolute bottom-full left-0 mb-1 bg-white border border-gray-300 shadow-lg z-50 min-w-[80px]">
+              <button 
+                  class="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 text-black {nodeType === 'onboard' ? 'bg-gray-50' : ''}"
+                  onclick={() => { showDropdown = false; if (!isConnected) startLocal(); }}
+                  disabled={isConnecting}
+              >
+                  Local
+              </button>
+              <button 
+                  class="w-full px-3 py-2 text-left text-xs hover:bg-gray-100 text-black {nodeType === 'external' ? 'bg-gray-50' : ''}"
+                  onclick={() => { showDropdown = false; showExternalDialog = true; }}
+              >
+                  External
+              </button>
+          </div>
+          {/if}
+      </div>
+      
+      <!-- Connection Status & Control -->
+      {#if isConnected}
+          <span class="text-light font-title text-xs">connected</span>
           <button 
-              class="text-light hover:text-red-400 font-title text-xs border border-light hover:border-red-400 px-1"
+              class="text-light hover:text-red-400 font-title text-xs border border-light hover:border-red-400 px-2 py-1 flex items-center gap-1"
               onclick={disconnect}
+              title="Stop/Disconnect node"
           >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="6" width="12" height="12" rx="1"/>
+              </svg>
               stop
           </button>
+      {:else}
+          <span class="text-light font-title text-xs">disconnected</span>
+          <button 
+              class="text-light hover:text-green-400 font-title text-xs border border-light hover:border-green-400 px-2 py-1 flex items-center gap-1"
+              onclick={() => { if (nodeType === 'onboard') startLocal(); else showExternalDialog = true; }}
+              disabled={isConnecting}
+          >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5,3 19,12 5,21"/>
+              </svg>
+              {isConnecting ? 'connecting...' : 'start'}
+          </button>
       {/if}
-      
-      <!-- External Connection Button -->
-      <button 
-          class="text-light hover:text-blue-400 font-title text-xs flex items-center gap-1 {isConnected && nodeType === 'external' ? 'text-blue-400' : ''}"
-          onclick={() => showExternalDialog = true}
-          disabled={false}
-          title="Connect to external node"
-      >
-          <!-- Link/External Icon -->
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-          </svg>
-      </button>
   </div>
 
   <!-- Aeroe Version -->

@@ -151,6 +151,10 @@ pub fn spawn_nockchain_service(
                                 info!("[Nockchain Service] Connected to external socket: {:?}", socket_path);
                                 let _ = cmd.response.send(Ok(NockchainResponse::Success));
                             },
+                            NockchainRequest::DisconnectExternal => {
+                                info!("[Nockchain Service] Disconnecting from external node");
+                                let _ = cmd.response.send(Ok(NockchainResponse::Success));
+                            },
                             NockchainRequest::GetStatus => {
                                 // Just report if master prover is running - mode is tracked elsewhere
                                 let master_running = provers.contains_key("master");

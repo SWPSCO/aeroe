@@ -35,6 +35,22 @@ pub async fn node_connect_external(
 }
 
 #[tauri::command]
+pub async fn node_disconnect_external(node: State<'_, Mutex<NockchainNode>>) -> Result<(), String> {
+    tracing::info!("[node_disconnect_external] Called");
+    
+    let mut node = node.lock().await;
+    tracing::info!("[node_disconnect_external] Current mode before disconnect: {:?}", node.get_mode());
+    
+    let result = node.disconnect_external().await;
+    
+    tracing::info!("[node_disconnect_external] Result: {:?}", result);
+    tracing::info!("[node_disconnect_external] Mode after disconnect: {:?}", node.get_mode());
+    tracing::info!("[node_disconnect_external] Is connected: {}", node.is_connected());
+    
+    result
+}
+
+#[tauri::command]
 pub async fn node_peek(
     status_caller_tx: State<'_, Mutex<tokio::sync::broadcast::Sender<NockchainPeek>>>,
     command: String,

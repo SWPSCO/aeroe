@@ -181,6 +181,7 @@ pub async fn run() {
             nockchain_node::node_start_master,
             nockchain_node::node_stop_master,
             nockchain_node::node_connect_external,
+            nockchain_node::node_disconnect_external,
             nockchain_node::node_get_status,
             nockchain_node::node_peek,
         ])

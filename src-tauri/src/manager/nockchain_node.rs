@@ -6,6 +6,7 @@ pub enum NockchainRequest {
     StartMaster,
     StopMaster,
     ConnectExternal(std::path::PathBuf),
+    DisconnectExternal,
     GetStatus,
 }
 
@@ -146,6 +147,40 @@ impl NockchainNode {
               Err(format!("Command response error: {}", e))
           }
       }
+    }
+
+    pub async fn disconnect_external(&mut self) -> Result<(), String> {
+        match &self.mode {
+            NodeMode::External(_) => {
+                let (response_tx, response_rx) = oneshot::channel();
+                let cmd = NockchainCommand {
+                    command: NockchainRequest::DisconnectExternal,
+                    response: response_tx,
+                };
+
+                tracing::info!("[NockchainNode] Sending DisconnectExternal command");
+
+                self.tx
+                    .send(cmd)
+                    .await
+                    .map_err(|e| format!("Failed to send disconnect command: {}", e))?;
+
+                match response_rx.await {
+                    Ok(Ok(_)) => {
+                        tracing::info!("[NockchainNode] External node disconnected successfully");
+                        self.mode = NodeMode::Disconnected;
+                        Ok(())
+                    }
+                    Ok(Err(e)) => {
+                        tracing::error!("[NockchainNode] Failed to disconnect external node: {}", e);
+                        Err(e)
+                    }
+                    Err(e) => Err(format!("Command response error: {}", e)),
+                }
+            }
+            NodeMode::Local(_) => Err("Cannot disconnect external node when using local node".to_string()),
+            NodeMode::Disconnected => Err("No external node connected".to_string()),
+        }
     }
 
     pub async fn get_status(&mut self) -> Result<(bool, u64), String> {

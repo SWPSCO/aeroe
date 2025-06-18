@@ -91,6 +91,7 @@ export const node = {
     startMaster: () => handleInvoke<void>('node_start_master'),
     stopMaster: () => handleInvoke<void>('node_stop_master'),
     connectExternal: (socketPath: string) => handleInvoke<void>('node_connect_external', { socketPath }),
+    disconnectExternal: () => handleInvoke<void>('node_disconnect_external'),
     getStatus: () => handleInvoke<NodeStatus>('node_get_status'),
     peek: (command: string) => handleInvoke<any>('node_peek', { command }),
 } 
