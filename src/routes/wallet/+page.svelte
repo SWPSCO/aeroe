@@ -50,8 +50,8 @@
 					{#each $sessionStore.wallets.filter(w => w !== activeWalletName) as w}
 						<button class="w-full px-4 py-3 flex items-center justify-between border-t first:border-t-0 hover:bg-gray-200"
 							on:click={() => {
-								sessionStore.setActiveWallet(w);
 								walletStore.loadAndFetch(w);
+								sessionStore.setActiveWallet(w);
 								showWalletMenu = false;
 							}}>
 							<span class="font-title text-dark">{w}</span>
@@ -172,7 +172,7 @@
           .card{fill:url(#grad);rx:8;ry:8;transform-origin:80px 50px;animation:flip var(--t) cubic-bezier(.4,.2,.2,1) infinite}
           .stripe{fill:#ffffff}
           .shadow{fill:#000;filter:blur(4px);transform-origin:80px 80px;animation:shadow var(--t) ease-in-out infinite}
-        </style>
+        </style>	
         <defs>
           <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stop-color="#000"/>

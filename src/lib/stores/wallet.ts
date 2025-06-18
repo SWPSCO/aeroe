@@ -1,5 +1,6 @@
 import { writable, get } from 'svelte/store';
 import { wallet as walletService } from '$lib/services';
+import { aeroe } from '$lib/services';
 import type { WalletBalance, NockchainTxMeta } from '$lib/services/tauri';
 import { sessionStore } from '$lib/stores/session';
 
@@ -63,6 +64,12 @@ function createWalletStore() {
           error: null,
           loadedWalletName: walletName,
         }));
+
+        // Ensure session wallet list is up-to-date (handles cold start)
+        const statusRes = await aeroe.status();
+        if (statusRes.success && statusRes.data) {
+          sessionStore.setWallets(statusRes.data.wallets || []);
+        }
         return;
       }
 
@@ -150,6 +157,13 @@ function createWalletStore() {
     async loadAndFetch(walletName: string) {
       try {
         await walletService.load(walletName);
+        // refresh list of wallets from backend so menu is accurate
+        const statusRes = await aeroe.status();
+        if (statusRes.success && statusRes.data) {
+          const current = get(sessionStore).wallets;
+          const merged = Array.from(new Set([...(current ?? []), ...((statusRes.data.wallets) ?? [])]));
+          sessionStore.setWallets(merged);
+        }
       } catch (_) {
         // Even if load fails, still attempt to fetch to surface error via balance
       }
