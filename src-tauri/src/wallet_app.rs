@@ -203,38 +203,22 @@ impl WalletApp {
             .await;
 
         {
-            if requires_sync || requires_nockchain {
-                let socket_path = master_socket.clone();
-                match UnixStream::connect(&socket_path).await {
-                    Ok(stream) => {
-                        info!("Connected to nockchain NPC socket at {:?}", socket_path);
-                        wallet
-                            .app
-                            .add_io_driver(nockapp::npc_client_driver(stream))
-                            .await;
-                    }
-                    Err(e) => {
-                        error!(
-                            "Failed to connect to nockchain NPC socket at {:?}: {}\n\
-                                This could mean:\n\
-                                1. Nockchain is not running\n\
-                                2. The socket path is incorrect\n\
-                                3. The socket file exists but is stale (try removing it)\n\
-                                4. Insufficient permissions to access the socket",
-                            socket_path, e
-                        );
-                    }
+            let socket_path = master_socket.clone();
+            match UnixStream::connect(&socket_path).await {
+                Ok(stream) => {
+                    info!("Connected to nockchain NPC socket at {:?}", socket_path);
+                    wallet
+                        .app
+                        .add_io_driver(nockapp::npc_client_driver(stream))
+                        .await;
                 }
+                Err(e) => error!("failed to connect to nockchain NPC socket at {:?}: {}", socket_path, e),
             }
 
             wallet.app.add_io_driver(file_driver()).await;
             wallet.app.add_io_driver(markdown_driver()).await;
             wallet.app.add_io_driver(exit_driver()).await;
-            wallet
-                .app
-                .run()
-                .await
-                .map_err(|e| format!("wallet run failed: {}", e))?;
+            wallet.app.run().await.map_err(|e| format!("wallet run failed: {}", e))?;
             Ok(vec![NounSlab::new()])
         }
     }
