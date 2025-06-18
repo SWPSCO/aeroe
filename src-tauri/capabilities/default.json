@@ -9,6 +9,10 @@
     "core:default",
     "shell:allow-open",
     "updater:default",
-    "clipboard-manager:default"
+    "clipboard-manager:default",
+    "dialog:allow-open",
+    "dialog:allow-message",
+    "fs:allow-home-read-recursive",
+    "fs:allow-home-write-recursive"
   ]
 }

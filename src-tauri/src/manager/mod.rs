@@ -17,7 +17,6 @@ pub struct NockchainStatus {
     pub command: NockchainPeek,
     pub noun: Noun,
 }
-
 impl NockchainStatus {
     pub fn new(command: NockchainPeek, noun: Noun) -> Self {
         Self { command, noun }

@@ -1,6 +1,6 @@
 use crate::manager::{
     NockchainCommand, NockchainPeek, NockchainRequest, NockchainResponse, NockchainStatus,
-    WalletCommand,
+    WalletCommand, NockchainNode,
 };
 use crate::prover::Prover;
 use crate::wallet_app::WalletApp;
@@ -8,6 +8,8 @@ use futures::FutureExt;
 use std::panic::AssertUnwindSafe;
 use std::path::PathBuf;
 use tracing::{error, info, warn};
+use tauri::Manager;
+use tokio::sync::Mutex;
 
 #[derive(Clone, Debug)]
 enum ProverCommand {
@@ -17,7 +19,8 @@ enum ProverCommand {
 pub fn spawn_wallet_service(
     mut wallet_rx: tokio::sync::mpsc::Receiver<WalletCommand>,
     wallet_dir: PathBuf,
-    master_socket: PathBuf,
+    default_socket: PathBuf,
+    app_handle: tauri::AppHandle,
 ) {
     std::thread::spawn(move || {
         let runtime = tokio::runtime::Builder::new_current_thread()
@@ -29,12 +32,19 @@ pub fn spawn_wallet_service(
             info!("[Wallet Service] Started on a dedicated OS thread");
             while let Some(cmd) = wallet_rx.recv().await {
                 let command_name = format!("{:?}", cmd.command);
-                info!("[Wallet Service] Received command: {}", command_name);
+
+                let current_socket = {
+                    let nockchain_node = app_handle.state::<Mutex<NockchainNode>>();
+                    let nockchain_node = nockchain_node.lock().await;
+                    nockchain_node.socket_path()
+                        .map(|p| p.to_path_buf())
+                        .unwrap_or_else(|| default_socket.clone())
+                };
 
                 let future = AssertUnwindSafe(WalletApp::run(
                     cmd.command,
                     wallet_dir.clone(),
-                    master_socket.clone(),
+                    current_socket, // local vs external socket
                 ));
 
                 match future.catch_unwind().await {
@@ -93,7 +103,8 @@ pub fn spawn_nockchain_service(
             let mut provers: std::collections::HashMap<String, tokio::sync::mpsc::Sender<ProverCommand>> = std::collections::HashMap::new();
             let mut running_intent: std::collections::HashSet<String> = std::collections::HashSet::new();
             let (death_tx, mut death_rx) = tokio::sync::mpsc::channel::<String>(32);
-            // let mut next_worker_id: u64 = 0;
+
+            // Remove the duplicate current_mode tracking - NockchainNode already tracks this
 
             loop {
                 tokio::select! {
@@ -103,6 +114,7 @@ pub fn spawn_nockchain_service(
 
                         match cmd.command {
                             NockchainRequest::StartMaster => {
+                                // Just start the prover - don't track mode here
                                 if !provers.contains_key("master") {
                                     running_intent.insert("master".to_string());
                                     start_prover(
@@ -122,6 +134,28 @@ pub fn spawn_nockchain_service(
                                     stop_prover("master".to_string(), &mut provers).await;
                                 }
                                 let _ = cmd.response.send(Ok(NockchainResponse::Success));
+                            },
+                            NockchainRequest::ConnectExternal(socket_path) => {
+                                if !socket_path.exists() {
+                                    let _ = cmd.response.send(Err(format!("Socket path does not exist: {:?}", socket_path)));
+                                    continue;
+                                }
+                                
+                                // Stop any running local master when connecting to external
+                                if provers.contains_key("master") {
+                                    running_intent.remove("master");
+                                    stop_prover("master".to_string(), &mut provers).await;
+                                    info!("[Nockchain Service] Stopped local master to connect to external node");
+                                }
+                                
+                                info!("[Nockchain Service] Connected to external socket: {:?}", socket_path);
+                                let _ = cmd.response.send(Ok(NockchainResponse::Success));
+                            },
+                            NockchainRequest::GetStatus => {
+                                // Just report if master prover is running - mode is tracked elsewhere
+                                let master_running = provers.contains_key("master");
+                                let num_workers = 0;
+                                let _ = cmd.response.send(Ok(NockchainResponse::Status { master_running, num_workers }));
                             },
                             /*
                             NockchainRequest::SetWorkers(_num_workers) => {
@@ -148,12 +182,6 @@ pub fn spawn_nockchain_service(
                                 let _ = cmd.response.send(Ok(NockchainResponse::Success));
                             },
                             */
-                            NockchainRequest::GetStatus => {
-                                let master_running = provers.contains_key("master");
-                                // let num_workers = provers.keys().filter(|k| k.starts_with("worker")).count() as u64;
-                                let num_workers = 0;
-                                let _ = cmd.response.send(Ok(NockchainResponse::Status { master_running, num_workers }));
-                            }
                         }
                     },
                     Some(dead_id) = death_rx.recv() => {

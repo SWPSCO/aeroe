@@ -306,12 +306,17 @@ impl Wallet {
             };
             draft.location.clone()
         };
-        
-        tracing::info!("sending command to broadcast the transaction: {:?}", draft_location);
+
+        tracing::info!(
+            "sending command to broadcast the transaction: {:?}",
+            draft_location
+        );
         // send command to broadcast the transaction
-        let _ = self.send_command(Commands::MakeTx {
-            draft: draft_location,
-        }).await?;
+        let _ = self
+            .send_command(Commands::MakeTx {
+                draft: draft_location,
+            })
+            .await?;
 
         // Now update the draft
         let Some(draft) = self.drafts.get_mut(&draft_id) else {
@@ -437,8 +442,8 @@ impl Wallet {
     // Helpers
     //
     async fn send_command(&self, command: Commands) -> Result<Vec<NounSlab>, String> {
-        let (resp_tx, resp_rx) = oneshot::channel();
         tracing::info!("sending command: {:?}", command);
+        let (resp_tx, resp_rx) = oneshot::channel();
         self.command_tx
             .send(WalletCommand {
                 command,

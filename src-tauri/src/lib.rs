@@ -23,14 +23,16 @@ use tracing::error;
 pub async fn run() {
     nockvm::check_endian();
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_shell::init())
         .setup(move |app| {
             // --- Update Checker Service ---
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
-                let mut interval = tokio::time::interval(Duration::from_secs(15));
+                let mut interval = tokio::time::interval(Duration::from_secs(300));
                 loop {
                     interval.tick().await;
                     update_checker::check_update(&app_handle).await;
@@ -57,7 +59,8 @@ pub async fn run() {
             services::spawn_wallet_service(
                 wallet_rx,
                 wallet_dir.clone(),
-                nockchain_dir.clone().join("npc/master.sock"),
+                nockchain_dir.clone().join("npc/master.sock"), // default socket path
+                app.handle().clone(),
             );
 
             // --- Nockchain Service ---
@@ -91,15 +94,15 @@ pub async fn run() {
             });
 
             // --- Start Master Node ---
-            let master_node_app_handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                let nockchain_node =
-                    master_node_app_handle.state::<Mutex<manager::NockchainNode>>();
-                let mut nockchain_node = nockchain_node.lock().await;
-                if let Err(e) = nockchain_node.start_master().await {
-                    error!("Failed to start master node: {}", e);
-                }
-            });
+            // let master_node_app_handle = app.handle().clone();
+            // tauri::async_runtime::spawn(async move {
+            //     let nockchain_node =
+            //         master_node_app_handle.state::<Mutex<manager::NockchainNode>>();
+            //     let mut nockchain_node = nockchain_node.lock().await;
+            //     if let Err(e) = nockchain_node.start_master().await {
+            //         error!("Failed to start master node: {}", e);
+            //     }
+            // });
 
             // --- Wallet State Updater ---
             // receives status from nockchain node
@@ -177,6 +180,8 @@ pub async fn run() {
             // nockchain node
             nockchain_node::node_start_master,
             nockchain_node::node_stop_master,
+            nockchain_node::node_connect_external,
+            nockchain_node::node_get_status,
             nockchain_node::node_peek,
         ])
         .run(tauri::generate_context!())

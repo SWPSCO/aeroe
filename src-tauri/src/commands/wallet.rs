@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use crate::keycrypt::Keycrypt;
 use crate::manager;
+use crate::manager::NodeMode;
 
 #[tauri::command]
 pub async fn vault_create(
@@ -45,11 +46,26 @@ pub async fn keygen(
 pub async fn wallet_load(
     wallet: tauri::State<'_, Mutex<manager::Wallet>>,
     vault: tauri::State<'_, Mutex<Keycrypt>>,
+    nockchain_node: tauri::State<'_, Mutex<manager::NockchainNode>>,
     wallet_name: String,
 ) -> Result<(), String> {
+    {
+        let node = nockchain_node.lock().await;
+        tracing::info!("[wallet_load] Node mode: {:?}", node.get_mode());
+        tracing::info!("[wallet_load] Is connected: {}", node.is_connected());
+        
+        if !node.is_connected() {
+            tracing::warn!("[wallet_load] Node is not connected, returning error");
+            return Err("Please connect to a node (local or external) before loading wallet".to_string());
+        }
+        tracing::info!("[wallet_load] Node connection check passed");
+    }
+    
     let vault_lock = vault.lock().await;
     let seedphrase = vault_lock.get_seedphrase(wallet_name.clone())?;
     tracing::debug!("seedphrase: {:?}", seedphrase);
+    drop(vault_lock);
+    
     let mut wallet_lock = wallet.lock().await;
     wallet_lock.gen_master_privkey(seedphrase).await?;
     wallet_lock.load(wallet_name).await?;

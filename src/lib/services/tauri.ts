@@ -31,6 +31,11 @@ export interface NockchainTxMeta {
   status: 'draft' | 'signed' | 'pending';
 }
 
+interface NodeStatus {
+  connected: boolean;
+  mode: 'local' | 'external' | 'disconnected';
+}
+
 async function handleInvoke<T>(command: string, args?: InvokeArgs): Promise<BackendResponse<T>> {
     try {
         const data = await (args ? invoke(command, args) : invoke(command));
@@ -85,5 +90,7 @@ export const wallet = {
 export const node = {
     startMaster: () => handleInvoke<void>('node_start_master'),
     stopMaster: () => handleInvoke<void>('node_stop_master'),
+    connectExternal: (socketPath: string) => handleInvoke<void>('node_connect_external', { socketPath }),
+    getStatus: () => handleInvoke<NodeStatus>('node_get_status'),
     peek: (command: string) => handleInvoke<any>('node_peek', { command }),
 } 

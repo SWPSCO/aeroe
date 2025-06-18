@@ -1,14 +1,17 @@
-use std::path::{Path, PathBuf};
+use std::env;
 use std::ffi::CString;
+use std::fs::File;
 use std::mem::size_of;
 use std::os::raw::{c_int, c_void};
-use std::ptr;
-use std::env;
-use std::fs::File;
 use std::os::unix::io::AsRawFd;
+use std::path::{Path, PathBuf};
+use std::ptr;
 use tracing::warn;
 
-use libc::{pid_t, fork, pipe, setsid, execl, getpid, close, write, read, waitpid, _exit, dup2, STDOUT_FILENO, STDERR_FILENO};
+use libc::{
+    _exit, close, dup2, execl, fork, getpid, pid_t, pipe, read, setsid, waitpid, write,
+    STDERR_FILENO, STDOUT_FILENO,
+};
 
 #[derive(Debug)]
 pub struct Watcher {
@@ -18,7 +21,10 @@ pub struct Watcher {
 
 impl Watcher {
     pub fn new(wallet_dir: PathBuf, log_dir: PathBuf) -> Self {
-        Self { wallet_dir, log_dir }
+        Self {
+            wallet_dir,
+            log_dir,
+        }
     }
 
     pub async fn start(&self) -> Result<(), String> {
@@ -31,7 +37,10 @@ impl Watcher {
             .join(format!("watcher"));
 
         if !sidecar_path.exists() {
-            return Err(format!("Watcher binary not found at path: {:?}", sidecar_path));
+            return Err(format!(
+                "Watcher binary not found at path: {:?}",
+                sidecar_path
+            ));
         }
 
         let mut watcher_pid = self.start_watcher(&sidecar_path)?;
@@ -57,7 +66,10 @@ impl Watcher {
     // daemonization logic. It now executes the pre-signed binary at `file`.
     fn start_watcher(&self, file: &Path) -> Result<u32, String> {
         let aeroe_pid = std::process::id();
-        let wallet_dir_str = self.wallet_dir.to_str().ok_or("wallet dir path is not valid utf8")?;
+        let wallet_dir_str = self
+            .wallet_dir
+            .to_str()
+            .ok_or("wallet dir path is not valid utf8")?;
 
         let c_file = CString::new(file.to_str().unwrap()).map_err(|e| e.to_string())?;
         let c_arg0 = c_file.clone();
@@ -66,7 +78,9 @@ impl Watcher {
 
         unsafe {
             let mut fds: [c_int; 2] = [0, 0];
-            if pipe(fds.as_mut_ptr()) == -1 { return Err("pipe failed".into()); }
+            if pipe(fds.as_mut_ptr()) == -1 {
+                return Err("pipe failed".into());
+            }
             let read_fd = fds[0];
             let write_fd = fds[1];
 
@@ -76,13 +90,21 @@ impl Watcher {
                     close(write_fd);
                     return Err("first fork failed".into());
                 }
-                0 => { // In FIRST CHILD
+                0 => {
+                    // In FIRST CHILD
                     close(read_fd);
-                    if setsid() == -1 { _exit(1); }
+                    if setsid() == -1 {
+                        _exit(1);
+                    }
                     match fork() {
-                        -1 => { _exit(1); }
-                        pid2 if pid2 > 0 => { _exit(0); } // In INTERMEDIATE CHILD
-                        _ => { // In GRANDCHILD (the daemon)
+                        -1 => {
+                            _exit(1);
+                        }
+                        pid2 if pid2 > 0 => {
+                            _exit(0);
+                        } // In INTERMEDIATE CHILD
+                        _ => {
+                            // In GRANDCHILD (the daemon)
                             // Redirect stdout and stderr to a log file
                             let log_path = self.log_dir.join("watcher.log");
                             if let Ok(file) = File::create(&log_path) {
@@ -92,18 +114,33 @@ impl Watcher {
                             }
 
                             let watcher_pid = getpid();
-                            let _ = write(write_fd, &watcher_pid as *const _ as *const c_void, size_of::<pid_t>());
+                            let _ = write(
+                                write_fd,
+                                &watcher_pid as *const _ as *const c_void,
+                                size_of::<pid_t>(),
+                            );
                             close(write_fd);
-                            execl(c_file.as_ptr(), c_arg0.as_ptr(), c_arg1.as_ptr(), c_arg2.as_ptr(), ptr::null::<c_void>() as *const _);
+                            execl(
+                                c_file.as_ptr(),
+                                c_arg0.as_ptr(),
+                                c_arg1.as_ptr(),
+                                c_arg2.as_ptr(),
+                                ptr::null::<c_void>() as *const _,
+                            );
                             _exit(1); // execl should not return
                         }
                     }
                 }
-                child1_pid => { // In ORIGINAL PARENT
+                child1_pid => {
+                    // In ORIGINAL PARENT
                     close(write_fd);
                     let mut pid_buf: pid_t = 0;
                     let bytes_to_read = size_of::<pid_t>() as usize;
-                    let n = read(read_fd, &mut pid_buf as *mut _ as *mut c_void, bytes_to_read);
+                    let n = read(
+                        read_fd,
+                        &mut pid_buf as *mut _ as *mut c_void,
+                        bytes_to_read,
+                    );
                     close(read_fd);
                     let mut status: c_int = 0;
                     let _ = waitpid(child1_pid, &mut status as *mut _, 0);

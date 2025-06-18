@@ -62,6 +62,8 @@ nockvm_macros = { git = "https://github.com/swpsco/nockchain.git", rev = "cd9584
 nockchain-libp2p-io = { git = "https://github.com/swpsco/nockchain.git", rev = "cd95843ec34c88a36d965a04e9bd3bb468d05fc3", package = "nockchain-libp2p-io" }
 futures = "0.3.31"
 tauri-plugin-clipboard-manager = "2.2.2"
+tauri-plugin-dialog = "2"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
+tauri-plugin-fs = "2.0"
