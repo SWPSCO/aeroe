@@ -65,6 +65,11 @@ function createMainStore() {
     goto('/welcome');
   }
 
+  function navigateToWalletSelection() {
+    store.set({ name: 'unauthenticated' });
+    goto('/select-wallet');
+  }
+
   // Initial boot sequence is now removed from here
   // boot();
 
@@ -74,6 +79,7 @@ function createMainStore() {
     authenticate,
     unauthenticate,
     completeOnboarding,
+    navigateToWalletSelection,
   };
 }
 

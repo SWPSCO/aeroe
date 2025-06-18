@@ -26,9 +26,10 @@
 	}
 </script>
 
-<div class="w-full flex flex-col gap-8 p-8">
-	{#if $walletStore.balance}
-		<div class="px-8 pt-8 pb-4">
+<div class="w-full">
+	<div class="max-w-6xl mx-auto flex flex-col gap-8 p-8">
+		{#if $walletStore.balance}
+			<div class="px-8 pt-8 pb-4">
 			<!-- Wallet identity -->
 			<div class="flex items-center justify-between bg-gray-1 p-4 {showWalletMenu ? '' : 'mb-6'}">
 				<div class="flex flex-col">
@@ -96,20 +97,20 @@
 				>
 					Receive
 				</button>
-            </div>
-        </div>
-    {:else}
-		<div class="px-8 pt-8 pb-4 animate-pulse font-title">Loading balance…</div>
-	{/if}
+				</div>
+			</div>
+		{:else}
+			<div class="px-8 pt-8 pb-4 animate-pulse font-title">Loading balance…</div>
+		{/if}
 
-	{#if showSendForm}
-		<div class="px-8">
-			<SendForm />
-		</div>
-	{/if}
+		{#if showSendForm}
+			<div class="px-8">
+				<SendForm />
+			</div>
+		{/if}
 
-	{#if showReceive}
-		<div class="px-8">
+		{#if showReceive}
+			<div class="px-8">
 				<div class="flex flex-col gap-4 p-6 border-2 border-dark bg-white items-center">
 				<h2 class="font-title text-xl">Your Address</h2>
 
@@ -144,12 +145,13 @@
 				{:else}
 					<p class="text-red-500">Could not load wallet address.</p>
 				{/if}
+				</div>
 			</div>
-		</div>
-	{/if}
+		{/if}
 
-	<div class="px-8 pb-8">
-		<TransactionList transactions={$walletStore.transactions} />
+		<div class="px-8 pb-8">
+			<TransactionList transactions={$walletStore.transactions} />
+		</div>
 	</div>
 </div>
 
