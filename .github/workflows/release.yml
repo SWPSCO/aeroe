@@ -846,7 +846,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os_name }}-${{ needs.update_version.outputs.app_version }}
-          path: ${{ matrix.use_native_runner && 'src-tauri/target/release/bundle/appimage/*.AppImage' || steps.tauri_build_x64.outputs.artifactPaths }}
+          path: ${{ matrix.use_native_runner && 'src-tauri/target/**/bundle/appimage/*.AppImage' || steps.tauri_build_x64.outputs.artifactPaths }}
           if-no-files-found: error
 
   publish_release:
