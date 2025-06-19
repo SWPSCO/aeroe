@@ -18,3 +18,4 @@ nockchain.sock
 .aider.tags.cache.v4/
 vendor/
 .aider*
+.claude/
