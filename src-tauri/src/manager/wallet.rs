@@ -447,7 +447,7 @@ impl Wallet {
     // Helpers
     //
     async fn send_command(&self, command: Commands) -> Result<Vec<NounSlab>, String> {
-        tracing::info!("sending command: {:?}", command);
+        // tracing::info!("sending command: {:?}", command);
         let (resp_tx, resp_rx) = oneshot::channel();
         self.command_tx
             .send(WalletCommand {
