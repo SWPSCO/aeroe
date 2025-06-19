@@ -39,7 +39,7 @@
 
 <div class="flex flex-col gap-8 items-center justify-center">
 	{#if !$welcomeStore.seedPhrase}
-		<h1 class="text-2xl font-title animate-pulse">Generating Your Secure Keys...</h1>
+		<h1 class="text-2xl font-title animate-pulse">Generating Your Secure Key...</h1>
 		<!-- spinning key animation -->
 		<svg width="160" height="100" viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
 			<style>

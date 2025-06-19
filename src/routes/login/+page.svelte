@@ -9,7 +9,7 @@
 	{#if $loginStore.state === 'pending'}
 		<div class="animate-pulse text-2xl font-title mb-4">Unlocking Vault...</div>
     <div>
-    <svg width="160" height="100" viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
+    <svg width="160" height="130" viewBox="0 0 160 130" xmlns="http://www.w3.org/2000/svg">
       <style>
         :root { --t: 2.4s }
         @keyframes jiggle {
@@ -28,17 +28,17 @@
         }
         .body { fill:#000; rx:8; ry:8 }
         .shackle { stroke:#000; stroke-width:6; fill:none; stroke-linecap:round;
-                  transform-origin:80px 35px; animation:pop var(--t) cubic-bezier(.3,1.4,.4,1) infinite }
-        .key { fill:#ff4a1a; transform-origin:80px 72px; animation:jiggle var(--t) ease-in-out infinite }
+                  transform-origin:80px 50px; animation:pop var(--t) cubic-bezier(.3,1.4,.4,1) infinite }
+        .key { fill:#ff4a1a; transform-origin:80px 87px; animation:jiggle var(--t) ease-in-out infinite }
         .shine { stroke:#000; stroke-width:3; stroke-linecap:round; opacity:.25;
                   animation:glow var(--t) ease-in-out infinite }
       </style>
-      <line class="shine" x1="58" y1="44" x2="102" y2="44"/>
-      <rect class="body" x="50" y="42" width="60" height="46"/>
-      <path class="shackle" d="M60 44 v-18 a20 20 0 0 1 40 0 v18"/>
+      <line class="shine" x1="58" y1="59" x2="102" y2="59"/>
+      <rect class="body" x="50" y="57" width="60" height="46"/>
+      <path class="shackle" d="M60 59 v-18 a20 20 0 0 1 40 0 v18"/>
       <g class="key">
-        <rect x="75" y="60" width="10" height="24" rx="2"/>
-        <rect x="70" y="78" width="20" height="6"  rx="1"/>
+        <rect x="75" y="75" width="10" height="24" rx="2"/>
+        <rect x="70" y="93" width="20" height="6"  rx="1"/>
       </g>
     </svg>
 
