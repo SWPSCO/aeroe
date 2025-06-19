@@ -707,10 +707,10 @@ jobs:
             # Find the extracted binary (it might have a different name)
             extracted_binary=$(find . -maxdepth 1 -name "*aeroe-watcher*" -type f | head -1)
             if [ -f "$extracted_binary" ]; then
-              cp "$extracted_binary" "src-tauri/assets/watcher"
-              chmod +x "src-tauri/assets/watcher"
+              cp "$extracted_binary" "src-tauri/bin/watcher"
+              chmod +x "src-tauri/bin/watcher"
               echo "Successfully replaced watcher binary"
-              ls -la "src-tauri/assets/watcher"
+              ls -la "src-tauri/bin/watcher"
             else
               echo "Error: Could not find watcher binary"
               echo "Files in current directory:"
@@ -841,12 +841,22 @@ jobs:
           echo -e "${all_paths}" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Upload Build Artifacts
-        if: steps.should_build.outputs.skip != 'true'
+      # x64
+      - name: Upload Build Artifacts           
+        if: steps.should_build.outputs.skip != 'true' && !matrix.use_native_runner
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os_name }}-${{ needs.update_version.outputs.app_version }}
-          path: ${{ matrix.use_native_runner && 'src-tauri/target/**/bundle/appimage/*.AppImage' || steps.tauri_build_x64.outputs.artifactPaths }}
+          path: ${{ steps.prep_artifact_paths_x64.outputs.paths }}
+          if-no-files-found: error
+
+      # aarch64
+      - name: Upload Build Artifacts 
+        if: steps.should_build.outputs.skip != 'true' && matrix.use_native_runner
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os_name }}-${{ needs.update_version.outputs.app_version }}
+          path: ${{ steps.prep_artifact_paths_aarch64.outputs.paths }}
           if-no-files-found: error
 
   publish_release:
