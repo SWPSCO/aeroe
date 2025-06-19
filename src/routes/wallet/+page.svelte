@@ -117,7 +117,26 @@
 				{#if $walletStore.masterPubkey}
 					<!-- Address text -->
 					<div class="pt-0 pb-2 px-2 break-all font-mono w-full max-w-lg text-center">
-						{$walletStore.masterPubkey}
+						<span style="word-break: break-all; white-space: pre-wrap; max-width: 44ch;">
+							{$walletStore.masterPubkey}
+						</span>
+						<!-- Copy icon button -->
+						<button
+							class="mt-2 p-2 transition-colors {copiedAddress ? 'bg-dark' : 'border-dark'}"
+							aria-label="Copy address"
+							on:click={() => {
+								if ($walletStore.masterPubkey) {
+									navigator.clipboard.writeText($walletStore.masterPubkey);
+									copiedAddress = true;
+									setTimeout(() => copiedAddress = false, 150);
+								}
+							}}
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 {copiedAddress ? 'text-white' : 'text-dark'}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<rect x="4" y="4" width="12" height="12" stroke-width="2" stroke="currentColor" fill="none"/>
+								<path d="M16 8 H20 V20 H8 V16" stroke-width="2" stroke="currentColor" fill="none" />
+							</svg>
+						</button>
 					</div>
 
 					<!-- QR code -->
@@ -125,23 +144,6 @@
 						<QrCode address={$walletStore.masterPubkey} />
 					</div>
 
-					<!-- Copy icon button with feedback -->
-					<button
-						class="mt-2 p-2 transition-colors {copiedAddress ? 'bg-dark' : 'border-dark'}"
-						aria-label="Copy address"
-						on:click={() => {
-							if ($walletStore.masterPubkey) {
-								navigator.clipboard.writeText($walletStore.masterPubkey);
-								copiedAddress = true;
-								setTimeout(() => copiedAddress = false, 150);
-							}
-						}}
-					>
-						<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 {copiedAddress ? 'text-white' : 'text-dark'}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<rect x="4" y="4" width="12" height="12" stroke-width="2" stroke="currentColor" fill="none"/>
-							<path d="M16 8 H20 V20 H8 V16" stroke-width="2" stroke="currentColor" fill="none" />
-						</svg>
-					</button>
 				{:else}
 					<p class="text-red-500">Could not load wallet address.</p>
 				{/if}

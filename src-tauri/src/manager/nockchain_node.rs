@@ -1,4 +1,3 @@
-use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
 
 #[derive(Debug)]
@@ -21,7 +20,7 @@ pub enum NockchainResponse {
 
 #[derive(Debug)]
 pub enum NodeMode {
-    Local(std::path::PathBuf),
+    Local((std::path::PathBuf)),
     External(std::path::PathBuf),
     Disconnected,
 }

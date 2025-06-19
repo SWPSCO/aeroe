@@ -5,7 +5,6 @@ use std::collections::HashMap;
 
 use crate::keycrypt::Keycrypt;
 use crate::manager;
-use crate::manager::NodeMode;
 
 #[tauri::command]
 pub async fn vault_create(

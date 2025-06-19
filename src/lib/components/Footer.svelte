@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import { listen } from '@tauri-apps/api/event';
   import { updater, node } from '$lib/services/tauri';
+  import { nodeStore } from '$lib/stores/node';
   import { open } from '@tauri-apps/plugin-dialog';
 
   let width = $state(0)
@@ -18,12 +19,13 @@
   })
   let downloading = $state(false)
   
-  let nodeType: 'onboard' | 'external' = $state('onboard')
-  let isConnected = $state(false)
+  let nodeType = $derived($nodeStore.mode === 'external' ? 'external' : 'onboard')
+  let isConnected = $derived($nodeStore.connected)
+  let isConnecting = $derived($nodeStore.connecting)
+  let blockHeight = $derived($nodeStore.blockHeight)
   let externalPath: string = $state('')
   let showExternalDialog = $state(false)
   let showDropdown = $state(false)
-  let isConnecting = $state(false)
 
   const updateApp = async () => {
       downloading = true;
@@ -49,91 +51,9 @@
     }
   }
 
-  const connectExternal = async () => {
-    console.log('connectExternal called with path:', externalPath.trim());
-    
-    if (!externalPath.trim()) {
-        console.log('No path provided, returning early');
-        return;
-    }
-    
-    console.log('Setting isConnecting to true');
-    isConnecting = true;
-    
-    try {
-        console.log('About to call node.connectExternal...');
-        const result = await node.connectExternal(externalPath.trim());
-        console.log('connectExternal result:', result);
-        
-        console.log('About to call node.getStatus...');
-        
-        const status = await node.getStatus();
-        console.log('getStatus after connect:', status);
-        
-        if (status.success && status.data) {
-            nodeType = status.data.mode === 'external' ? 'external' : 'onboard';
-            isConnected = status.data.connected;
-            
-            console.log('Updated frontend state - nodeType:', nodeType, 'isConnected:', isConnected);
-            
-            if (isConnected) {
-                console.log('Connection successful, closing dialog');
-                showExternalDialog = false;
-            } else {
-                console.log('Connection failed, keeping dialog open');
-            }
-        }
-    } catch (error) {
-        console.error('Error in connectExternal:', error);
-    } finally {
-        console.log('Setting isConnecting to false');
-        isConnecting = false;
-    }
-}
-
-  const startLocal = async () => {
-      isConnecting = true;
-      try {
-          const result = await node.startMaster();
-          console.log('startMaster result:', result);
-          const status = await node.getStatus();
-          console.log('getStatus after start:', status);
-          
-          if (status.success && status.data) {
-              nodeType = status.data.mode === 'external' ? 'external' : 'onboard';
-              isConnected = status.data.connected;
-          }
-      } catch (error) {
-          console.error('Failed to start local node:', error);
-      } finally {
-          isConnecting = false;
-      }
-  }
-
-  const disconnect = async () => {
-      console.log('disconnect() called, nodeType:', nodeType);
-      try {
-          if (nodeType === 'onboard') {
-              console.log('Calling node.stopMaster()');
-              await node.stopMaster();
-          } else if (nodeType === 'external') {
-              console.log('Calling node.disconnectExternal()');
-              await node.disconnectExternal();
-          }
-          
-          console.log('Disconnect command completed, checking status...');
-          const status = await node.getStatus();
-          console.log('Status after disconnect:', status);
-          
-          if (status.success && status.data) {
-              nodeType = status.data.mode === 'external' ? 'external' : 'onboard';
-              isConnected = status.data.connected;
-              console.log('Updated state - nodeType:', nodeType, 'isConnected:', isConnected);
-          }
-      } catch (error) {
-          console.error('Failed to disconnect:', error);
-      }
-  }
+  const startLocal = () => nodeStore.startLocal()
+  const connectExternal = () => nodeStore.connectExternal(externalPath.trim())
+  const disconnect = () => nodeStore.disconnect()
 
   onMount(() => {
       const init = async () => {
@@ -145,11 +65,7 @@
               progress = event.payload;
           });
           
-          const status = await node.getStatus();
-          if (status.success && status.data) {
-              nodeType = status.data.mode === 'external' ? 'external' : 'onboard';
-              isConnected = status.data.connected;
-          }
+          const status = await nodeStore.getStatus()
       };
       
       init();
@@ -164,6 +80,7 @@
       
       return () => {
           document.removeEventListener('click', handleClickOutside);
+          nodeStore.cleanup();
       };
   })
 </script>
@@ -177,14 +94,14 @@
       <!-- Node Type Dropdown -->
       <div class="relative">
           <button 
-              class="text-light hover:text-highlight-orange font-title text-xs border border-light hover:border-highlight-orange px-2 py-1 flex items-center gap-1"
+              class="h-[24px] text-light ont-title hover:text-highlight-orange text-sm border border-light hover:border-highlight-orange px-2 py-2 flex items-center whitespace-nowrap overflow-hidden"
               onclick={() => showDropdown = !showDropdown}
               disabled={isConnecting}
           >
-              {nodeType === 'onboard' ? 'Local' : 'External'}
-              <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M7 10l5 5 5-5z"/>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="6" width="12" height="12" rx="1"/>
               </svg>
+              {nodeType === 'onboard' ? 'Local' : 'External'}
           </button>
           
           {#if showDropdown}
@@ -208,28 +125,33 @@
       
       <!-- Connection Status & Control -->
       {#if isConnected}
-          <span class="text-light font-title text-xs">connected</span>
           <button 
-              class="text-light hover:text-red-400 font-title text-xs border border-light hover:border-red-400 px-2 py-1 flex items-center gap-1"
+              class="h-[24px] text-light font-title hover:text-highlight-orange text-sm border border-light hover:text-highlight-orange px-2 py-2 items-center flex"
               onclick={disconnect}
               title="Stop/Disconnect node"
           >
               <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                   <rect x="6" y="6" width="12" height="12" rx="1"/>
               </svg>
-              stop
+              Stop
           </button>
+      <!-- Block Height -->
+      {#if  blockHeight !== null}
+          <div class="flex items-center gap-1">
+              <span class="text-light font-title text-sm">Tip:</span>
+              <span class="text-highlight-orange font-title text-sm">{blockHeight}</span>
+          </div>
+      {/if}
       {:else}
-          <span class="text-light font-title text-xs">disconnected</span>
           <button 
-              class="text-light hover:text-green-400 font-title text-xs border border-light hover:border-green-400 px-2 py-1 flex items-center gap-1"
+              class="text-light hover:text-green-400 font-title text-xs border border-light hover:border-green-400 px-2 py-1 flex items-center gap-1 whitespace-nowrap overflow-hidden"
               onclick={() => { if (nodeType === 'onboard') startLocal(); else showExternalDialog = true; }}
               disabled={isConnecting}
           >
               <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
                   <polygon points="5,3 19,12 5,21"/>
               </svg>
-              {isConnecting ? 'connecting...' : 'start'}
+              {isConnecting ? 'connecting...' : 'Start'}
           </button>
       {/if}
   </div>
@@ -237,7 +159,7 @@
   <!-- Aeroe Version -->
   {#if !collapsed}
   <div class="flex gap-2 justify-center items-center">
-      <div class="h-[24px] px-1 font-title text-sm text-light border border-light">v{version}</div>
+      <div class="h-[24px] px-1 font-title text-sm text-light border border-light whitespace-nowrap overflow-hidden">v{version}</div>
       {#if updateInfo.hasUpdate}
           {#if downloading}
               <div class="text-center px-1 font-title text-xs text-highlight-orange">
