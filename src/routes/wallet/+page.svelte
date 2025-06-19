@@ -28,7 +28,7 @@
 
 <div class="w-full">
 	<div class="max-w-6xl mx-auto flex flex-col gap-8 p-8">
-		{#if $walletStore.balance}
+		{#if $walletStore.balance !== null && $walletStore.balance !== undefined}
 			<div class="px-8 pt-8 pb-4">
 			<!-- Wallet identity -->
 			<div class="flex items-center justify-between bg-gray-1 p-4 {showWalletMenu ? '' : 'mb-6'}">

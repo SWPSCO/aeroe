@@ -27,7 +27,7 @@ function createWalletStore() {
   const { subscribe, update } = store;
 
   const RETRY_DELAY = 500; // ms
-  const MAX_WAIT_MS = 30000;
+  const MAX_WAIT_MS = 360000;
 
   async function fetchWalletData(walletName: string): Promise<void> {
     // prevent duplicate fetches for wallet already loaded
@@ -53,7 +53,7 @@ function createWalletStore() {
         walletService.listUnsentTxs(walletName)
       ]);
 
-      if (balanceRes.success && balanceRes.data) {
+      if (balanceRes.success && balanceRes.data !== undefined && balanceRes.data !== null) {
         update(s => ({
           ...s,
           status: 'loaded',
