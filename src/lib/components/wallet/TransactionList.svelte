@@ -52,9 +52,7 @@
 							Sign
 						</button>
 					{:else if tx.status === 'signed'}
-						<button on:click={() => handleSend(tx.draftId)} class="p-2 bg-green-500 text-white font-title text-sm">
-							Send
-						</button>
+	
 					{/if}
 				</div>
 			{/each}

@@ -114,7 +114,9 @@ function createWelcomeStore() {
   }
 
   function chooseCreate() {
-    generateSeedPhrase();
+    update(s => ({ ...s, step: 'createWallet', seedPhrase: undefined }));
+    // Allow UI frame to paint before heavy backend call so animation shows
+    setTimeout(() => generateSeedPhrase(), 50);
   }
 
   function chooseImport() {

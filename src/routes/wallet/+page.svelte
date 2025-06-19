@@ -7,11 +7,15 @@
     import Modal from '$lib/components/Modal.svelte';
     import AddWalletWizard from '$lib/components/AddWalletWizard.svelte';
     import { welcomeStore } from '$lib/stores/welcome';
+    import MinimalNav from '$lib/components/shared/TopNav/Minimal.svelte';
 
 	let showSendForm = true;
 	let showReceive = false;
 	let showWalletMenu = false;
 	let showAddWalletModal = false;
+
+	// Visual feedback state for copy address
+	let copiedAddress = false;
 
 	$: activeWalletName = $sessionStore.activeWalletName;
 
@@ -22,9 +26,10 @@
 	}
 </script>
 
-<div class="w-full flex flex-col gap-8 p-8">
-	{#if $walletStore.balance}
-		<div class="px-8 pt-8 pb-4">
+<div class="w-full">
+	<div class="max-w-6xl mx-auto flex flex-col gap-8 p-8">
+		{#if $walletStore.balance}
+			<div class="px-8 pt-8 pb-4">
 			<!-- Wallet identity -->
 			<div class="flex items-center justify-between bg-gray-1 p-4 {showWalletMenu ? '' : 'mb-6'}">
 				<div class="flex flex-col">
@@ -45,7 +50,11 @@
 				<div class="bg-gray-1 w-full mb-6">
 					{#each $sessionStore.wallets.filter(w => w !== activeWalletName) as w}
 						<button class="w-full px-4 py-3 flex items-center justify-between border-t first:border-t-0 hover:bg-gray-200"
-							on:click={() => { sessionStore.setActiveWallet(w); walletStore.fetchWalletData(w); showWalletMenu = false; }}>
+							on:click={() => {
+								walletStore.loadAndFetch(w);
+								sessionStore.setActiveWallet(w);
+								showWalletMenu = false;
+							}}>
 							<span class="font-title text-dark">{w}</span>
 						</button>
 					{/each}
@@ -63,10 +72,10 @@
 			<div class=" font-title text-dark text-sm">Current Balance</div>
 			<div class="flex items-end gap-2 mt-2">
 				<div class="text-4xl text-highlight-orange font-bold">
-					{$walletStore.balance.amount}
+					{$walletStore.balance}
 				</div>
 				<div class="uppercase text-2xl text-dark font-title">
-					{$walletStore.balance.coin}
+					Nock
 				</div>
 			</div>
 			<div class="flex gap-4 mt-6">
@@ -75,7 +84,7 @@
 						showSendForm = true;
 						showReceive = false;
 					}}
-					class="flex-1 p-4 bg-dark text-white font-title"
+					class={`flex-1 p-4 font-title border-2 border-dark transition-colors ${showSendForm ? 'bg-dark text-white' : 'bg-white text-dark'}`}
 				>
 					Send
 				</button>
@@ -84,57 +93,98 @@
 						showReceive = true;
 						showSendForm = false;
 					}}
-					class="flex-1 p-4 border-2 border-dark font-title"
+					class={`flex-1 p-4 font-title border-2 border-dark transition-colors ${showReceive ? 'bg-dark text-white' : 'bg-white text-dark'}`}
 				>
 					Receive
 				</button>
-            </div>
-        </div>
-    {/if}
-
-	{#if showSendForm}
-		<div class="px-8">
-			<SendForm />
-		</div>
-	{/if}
-
-	{#if showReceive}
-		<div class="px-8 flex flex-col items-center">
-			<h2 class="font-title text-xl mb-1">Your Address</h2>
-
-			{#if $walletStore.masterPubkey}
-				<!-- Address text directly under the heading -->
-				<div class="p-2 bg-light break-all font-mono w-full max-w-lg text-center">
-					{$walletStore.masterPubkey}
 				</div>
+			</div>
+		{:else}
+			<div class="px-8 pt-8 pb-4 animate-pulse font-title">Loading balance…</div>
+		{/if}
 
-				<!-- QR code -->
-				<div class="mt-4">
-					<QrCode address={$walletStore.masterPubkey} />
+		{#if showSendForm}
+			<div class="px-8">
+				<SendForm />
+			</div>
+		{/if}
+
+		{#if showReceive}
+			<div class="px-8">
+				<div class="flex flex-col gap-4 p-6 border-2 border-dark bg-white items-center">
+				<h2 class="font-title text-xl">Your Address</h2>
+
+				{#if $walletStore.masterPubkey}
+					<!-- Address text -->
+					<div class="pt-0 pb-2 px-2 break-all font-mono w-full max-w-lg text-center">
+						{$walletStore.masterPubkey}
+					</div>
+
+					<!-- QR code -->
+					<div class="w-[225px] h-[225px] flex items-center justify-center">
+						<QrCode address={$walletStore.masterPubkey} />
+					</div>
+
+					<!-- Copy icon button with feedback -->
+					<button
+						class="mt-2 p-2 transition-colors {copiedAddress ? 'bg-dark' : 'border-dark'}"
+						aria-label="Copy address"
+						on:click={() => {
+							if ($walletStore.masterPubkey) {
+								navigator.clipboard.writeText($walletStore.masterPubkey);
+								copiedAddress = true;
+								setTimeout(() => copiedAddress = false, 150);
+							}
+						}}
+					>
+						<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 {copiedAddress ? 'text-white' : 'text-dark'}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<rect x="4" y="4" width="12" height="12" stroke-width="2" stroke="currentColor" fill="none"/>
+							<path d="M16 8 H20 V20 H8 V16" stroke-width="2" stroke="currentColor" fill="none" />
+						</svg>
+					</button>
+				{:else}
+					<p class="text-red-500">Could not load wallet address.</p>
+				{/if}
 				</div>
+			</div>
+		{/if}
 
-				<!-- Copy icon button in place where address used to be -->
-				<button class="mt-4" aria-label="Copy address"
-					on:click={() => $walletStore.masterPubkey && navigator.clipboard.writeText($walletStore.masterPubkey)}>
-					<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<rect x="4" y="4" width="12" height="12" stroke-width="2" stroke="currentColor" fill="none"/>
-						<!-- Bottom-right square with missing top-left corner (so it appears behind) -->
-						<path d="M16 8 H20 V20 H8 V16" stroke-width="2" stroke="currentColor" fill="none" />
-					</svg>
-				</button>
-			{:else}
-				<p class="text-red-500">Could not load wallet address.</p>
-			{/if}
+		<div class="px-8 pb-8">
+			<TransactionList transactions={$walletStore.transactions} />
 		</div>
-	{/if}
-
-	<div class="px-8 pb-8">
-		<TransactionList transactions={$walletStore.transactions} />
 	</div>
 </div>
 
 {#if showAddWalletModal}
-  <Modal open={true} close={() => showAddWalletModal = false}>
+  <Modal open={true} close={() => { if ($welcomeStore.step === 'chooseAction' || $welcomeStore.step === 'importWallet') showAddWalletModal = false; }}>
     <AddWalletWizard />
+  </Modal>
+{/if}
+
+<!-- Loading modal while switching wallets -->
+{#if $walletStore.fetching}
+  <Modal open={true} close={() => {}}>
+    <div class="h-full flex flex-col gap-4 items-center justify-center p-8">
+		<div class="animate-pulse text-2xl font-title text-center">Loading Wallet...</div>
+      <svg width="160" height="100" viewBox="0 0 160 100" xmlns="http://www.w3.org/2000/svg">
+        <style>
+          :root { --t:3s }
+          @keyframes flip {0%{transform:perspective(600px) rotateY(0deg)}50%{transform:perspective(600px) rotateY(180deg)}100%{transform:perspective(600px) rotateY(360deg)}}
+          @keyframes shadow {0%,100%{transform:scaleX(1);opacity:.25}50%{transform:scaleX(.6) translateX(10px);opacity=.1}}
+          .card{fill:url(#grad);rx:8;ry:8;transform-origin:80px 50px;animation:flip var(--t) cubic-bezier(.4,.2,.2,1) infinite}
+          .stripe{fill:#ffffff}
+          .shadow{fill:#000;filter:blur(4px);transform-origin:80px 80px;animation:shadow var(--t) ease-in-out infinite}
+        </style>	
+        <defs>
+          <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#000"/>
+            <stop offset="100%" stop-color="#222"/>
+          </linearGradient>
+        </defs>
+        <ellipse class="shadow" cx="80" cy="82" rx="36" ry="8" />
+        <rect class="card" x="40" y="25" width="80" height="50" rx="6" ry="6" />
+      </svg>
+      
+    </div>
   </Modal>
 {/if} 

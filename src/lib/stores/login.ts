@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 import { mainStore } from './main';
-import { vault, aeroe, wallet } from '$lib/services';
+import { sessionStore } from './session';
+import { vault, aeroe } from '$lib/services';
 
 type State = 'idle' | 'pending' | 'error';
 
@@ -24,18 +25,10 @@ function createLoginStore() {
       const statusRes = await aeroe.status();
 
       if (statusRes.success && statusRes.data && statusRes.data.wallets.length > 0) {
-        const walletToLoad = statusRes.data.wallets[0];
-        const loadRes = await wallet.load(walletToLoad);
-
-        if(loadRes.success) {
-          mainStore.authenticate(walletToLoad);
-        } else {
-          update((store) => ({
-            ...store,
-            state: 'error',
-            error: `Vault unlocked, but failed to load wallet '${walletToLoad}'. Error: ${JSON.stringify(loadRes.error)}`,
-          }));
-        }
+        // Set wallets in session store before navigating
+        sessionStore.setWallets(statusRes.data.wallets || []);
+        // Redirect to wallet selection page instead of auto-loading
+        mainStore.navigateToWalletSelection();
       } else {
         update((store) => ({
           ...store,

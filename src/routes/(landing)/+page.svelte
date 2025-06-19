@@ -84,7 +84,8 @@
 		</label>
 
 		<button
-			class="border-2 border-dark w-full p-4 mt-4 font-title bg-dark text-white disabled:bg-medium disabled:cursor-not-allowed"
+			class="border-2 border-dark w-full p-4 mt-4 font-title bg-dark text-white transition-colors
+			       disabled:bg-gray-500 disabled:text-gray-100 disabled:opacity-100 disabled:cursor-not-allowed"
 			disabled={!allAccepted}
 			on:click={onboardingStore.submit}
 		>
