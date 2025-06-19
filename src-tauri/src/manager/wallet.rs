@@ -165,6 +165,7 @@ impl Wallet {
         }
         // list notes
         let notes = self.peek_notes().await?;
+
         // find the lowest number of notes to complete the transaction
         let required_amount = total_amount + fee;
         let mut selected_notes = Vec::new();
@@ -386,7 +387,9 @@ impl Wallet {
         if self.wallet_name.is_none() {
             return Err("wallet is not loaded".to_string());
         }
-        let result = self.send_command(Commands::PeekBalance).await?;
+        let result = self.send_command(Commands::PeekBalance{
+            pubkey: self.get_master_pubkey().await?,
+        }).await?;
         let noun = Self::clean_peek_noun(result)?;
         let atom = noun
             .as_atom()
@@ -398,7 +401,9 @@ impl Wallet {
         Ok(balance)
     }
     async fn peek_notes(&self) -> Result<Vec<Note>, String> {
-        let result = self.send_command(Commands::PeekNotes).await?;
+        let result = self.send_command(Commands::PeekNotes {
+            pubkey: self.get_master_pubkey().await?,
+        }).await?;
         let notes = Self::clean_peek_noun(result)?;
         let notes_atom = notes
             .as_atom()

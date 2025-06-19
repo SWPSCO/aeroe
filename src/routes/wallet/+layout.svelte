@@ -5,6 +5,7 @@
 
 	import MainArea from '$lib/components/MainArea.svelte';
 	import TopNav from '$lib/components/shared/TopNav.svelte';
+	import MinimalNav from '$lib/components/shared/TopNav/Minimal.svelte';
 	import ContentArea from '$lib/components/ContentArea.svelte';
 	import FeatureArea from '$lib/components/FeatureArea.svelte';
 
@@ -24,8 +25,9 @@
 </script>
 
 <MainArea>
-	{#if $walletStore.status === 'loading' || $walletStore.status === 'locked'}
-		<div class="flex justify-center items-center h-screen">
+	{#if ($walletStore.status === 'loading' && !$walletStore.loadedWalletName) || $walletStore.status === 'locked'}
+		<MinimalNav />
+		<div class="flex justify-center items-center h-[calc(100vh-4rem)]">
 			<div class="animate-pulse text-2xl font-title">Loading Wallet...</div>
 		</div>
     {:else if $walletStore.status === 'error'}

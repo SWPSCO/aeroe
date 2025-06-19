@@ -44,22 +44,22 @@ argon2 = { version = "0.5.3" }
 chacha20poly1305 = { version = "0.10.1" }
 rand_core = { version = "0.9" }
 rand = { version = "0.9" }
-num_cpus = "1.16.0"
+num_cpus = { version = "1.16.0" }
 
 # stratum v2
-codec_sv2 = { git = "https://github.com/stratum-mining/stratum.git", rev = "6a4874d1302327e169cd894dc5a79f52d533dcc9", package = "codec_sv2", default-features = false }
-network_helpers_sv2 = { git = "https://github.com/stratum-mining/stratum.git", rev = "6a4874d1302327e169cd894dc5a79f52d533dcc9", package = "network_helpers_sv2" }
-key-utils = { git = "https://github.com/stratum-mining/stratum.git", rev = "6a4874d1302327e169cd894dc5a79f52d533dcc9", package = "key-utils" }
-roles_logic_sv2 = { git = "https://github.com/stratum-mining/stratum.git", rev = "6a4874d1302327e169cd894dc5a79f52d533dcc9", package = "roles_logic_sv2" }
+# codec_sv2 = { git = "https://github.com/stratum-mining/stratum.git", rev = "6a4874d1302327e169cd894dc5a79f52d533dcc9", package = "codec_sv2", default-features = false }
+# network_helpers_sv2 = { git = "https://github.com/stratum-mining/stratum.git", rev = "6a4874d1302327e169cd894dc5a79f52d533dcc9", package = "network_helpers_sv2" }
+# key-utils = { git = "https://github.com/stratum-mining/stratum.git", rev = "6a4874d1302327e169cd894dc5a79f52d533dcc9", package = "key-utils" }
+# roles_logic_sv2 = { git = "https://github.com/stratum-mining/stratum.git", rev = "6a4874d1302327e169cd894dc5a79f52d533dcc9", package = "roles_logic_sv2" }
 
 # nockchain
-nockchain-wallet-lib = { git = "https://github.com/swpsco/nockchain-wallet-lib.git", rev = "1e7ae7d5d51866b054793ca452e2ae8f8be8a191" }
-nockchain = { git = "https://github.com/swpsco/nockchain.git", rev = "cd95843ec34c88a36d965a04e9bd3bb468d05fc3", package = "nockchain" }
-nockvm = { git = "https://github.com/swpsco/nockchain.git", rev = "cd95843ec34c88a36d965a04e9bd3bb468d05fc3", package = "nockvm" }
-nockapp = { git = "https://github.com/swpsco/nockchain.git", rev = "cd95843ec34c88a36d965a04e9bd3bb468d05fc3", package = "nockapp" }
-zkvm-jetpack = { git = "https://github.com/swpsco/nockchain.git", rev = "cd95843ec34c88a36d965a04e9bd3bb468d05fc3", package = "zkvm-jetpack" }
-nockvm_macros = { git = "https://github.com/swpsco/nockchain.git", rev = "cd95843ec34c88a36d965a04e9bd3bb468d05fc3", package = "nockvm_macros" }
-nockchain-libp2p-io = { git = "https://github.com/swpsco/nockchain.git", rev = "cd95843ec34c88a36d965a04e9bd3bb468d05fc3", package = "nockchain-libp2p-io" }
+nockchain-wallet-lib = { git = "https://github.com/swpsco/nockchain-wallet-lib.git", rev = "caac9a7e8ad1a6debb00109fa7454c285d88b6a0" }
+nockchain = { git = "https://github.com/swpsco/nockchain.git", rev = "61e581e149ff8275223ccf527d7c4578c6866073", package = "nockchain" }
+nockvm = { git = "https://github.com/swpsco/nockchain.git", rev = "61e581e149ff8275223ccf527d7c4578c6866073", package = "nockvm" }
+nockapp = { git = "https://github.com/swpsco/nockchain.git", rev = "61e581e149ff8275223ccf527d7c4578c6866073", package = "nockapp" }
+zkvm-jetpack = { git = "https://github.com/swpsco/nockchain.git", rev = "61e581e149ff8275223ccf527d7c4578c6866073", package = "zkvm-jetpack" }
+nockvm_macros = { git = "https://github.com/swpsco/nockchain.git", rev = "61e581e149ff8275223ccf527d7c4578c6866073", package = "nockvm_macros" }
+nockchain-libp2p-io = { git = "https://github.com/swpsco/nockchain.git", rev = "61e581e149ff8275223ccf527d7c4578c6866073", package = "nockchain-libp2p-io" }
 futures = "0.3.31"
 tauri-plugin-clipboard-manager = "2.2.2"
 tauri-plugin-dialog = "2"

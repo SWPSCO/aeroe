@@ -2,10 +2,12 @@
 	import { welcomeStore } from '$lib/stores/welcome';
 	import Button from '$lib/components/shared/Button.svelte';
 	import { onMount } from 'svelte';
+	import { sessionStore } from '$lib/stores/session';
 
 	let phrase: string[] = Array(24).fill('');
-	let walletName = 'Imported Wallet';
+	let walletName = '';
 	let loading = false; // Local loading state for UI feedback
+	$: nameExists = $sessionStore.wallets.map(w=>w.toLowerCase()).includes(walletName.trim().toLowerCase());
 
 	const handleImport = () => {
 		loading = true;
@@ -43,10 +45,13 @@
 		<input
 			type="text"
 			bind:value={walletName}
-			class="text-lg font-title text-dark border border-dark p-3 text-center w-full focus:ring-1 focus:ring-highlight-orange focus:border-highlight-orange"
-			placeholder="Wallet Name"
+			class="p-2 border border-dark text-center font-title w-full max-w-xs placeholder-gray-400 focus:ring-1 focus:ring-highlight-orange focus:border-highlight-orange"
+			placeholder="Enter wallet name"
 			aria-label="Wallet Name"
 		/>
+		{#if nameExists && walletName.trim() !== ''}
+			<span class="text-red-500 text-sm">Wallet name already exists</span>
+		{/if}
 	</div>
 
 	<div
@@ -68,7 +73,7 @@
 
 	<Button
 		onclick={handleImport}
-		disabled={loading || walletName.trim() === '' || phrase.some(w => w.trim() === '')}
+		disabled={loading || walletName.trim() === '' || phrase.some(w => w.trim() === '') || nameExists}
 	>
 		{loading ? 'Importing...' : 'Import & Open Wallet'}
 	</Button>

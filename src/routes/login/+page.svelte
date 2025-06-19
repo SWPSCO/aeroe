@@ -30,7 +30,6 @@
         await loginStore.login(password);
     }
   };
-
 	const handleKeydown = (e: KeyboardEvent) => {
 		if (e.key === 'Enter') {
 			handleLogin();

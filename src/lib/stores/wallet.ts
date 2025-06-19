@@ -1,5 +1,6 @@
 import { writable, get } from 'svelte/store';
 import { wallet as walletService } from '$lib/services';
+import { aeroe } from '$lib/services';
 import type { WalletBalance, NockchainTxMeta } from '$lib/services/tauri';
 import { sessionStore } from '$lib/stores/session';
 
@@ -9,7 +10,8 @@ export interface WalletState {
   masterPubkey: string | null;
   transactions: { [draftId: string]: NockchainTxMeta };
   error: string | null;
-  // This could be expanded to include transaction history, etc.
+  loadedWalletName: string | null;
+  fetching: boolean;
 }
 
 function createWalletStore() {
@@ -19,55 +21,70 @@ function createWalletStore() {
     masterPubkey: null,
     transactions: {},
     error: null,
+    loadedWalletName: null,
+    fetching: false,
   });
   const { subscribe, update } = store;
 
-  async function fetchWalletData(walletName: string) {
+  const RETRY_DELAY = 500; // ms
+  const MAX_WAIT_MS = 360000;
+
+  async function fetchWalletData(walletName: string): Promise<void> {
+    // prevent duplicate fetches for wallet already loaded
     const currentState = get(store);
-    // If the requested wallet is already loaded, don't re-fetch.
-    if (currentState.status === 'loaded' && get(sessionStore).activeWalletName === walletName) {
-      return;
-    }
+    if (currentState.status === 'loaded' && currentState.loadedWalletName === walletName) return;
 
-    update(s => ({ ...s, status: 'loading', error: null }));
+    // Determine if this is the first time we are loading any wallet
+    const firstLoad = get(store).loadedWalletName === null;
 
-    // Use our new, type-safe service layer
-    const balanceResult = await walletService.balance(walletName);
-    const pubkeyResult = await walletService.masterPubkey(walletName);
-    const txsResult = await walletService.listUnsentTxs(walletName);
+    update(s => ({
+      ...s,
+      status: firstLoad ? 'loading' : 'loaded',
+      fetching: true,
+      error: null,
+    }));
 
-    if (balanceResult.success && pubkeyResult.success && txsResult.success) {
-      const balanceData = balanceResult.data;
-      const pubkeyData = pubkeyResult.data;
-      const txsData = txsResult.data;
+    const start = Date.now();
 
-      if (balanceData && pubkeyData && txsData) {
+    while (true) {
+      const [balanceRes, pubkeyRes, txsRes] = await Promise.all([
+        walletService.balance(walletName),
+        walletService.masterPubkey(walletName),
+        walletService.listUnsentTxs(walletName)
+      ]);
+
+      if (balanceRes.success && balanceRes.data !== undefined && balanceRes.data !== null) {
         update(s => ({
           ...s,
           status: 'loaded',
-          balance: balanceData,
-          masterPubkey: pubkeyData,
-          transactions: txsData,
+          fetching: false,
+          balance: balanceRes.data as WalletBalance,
+          masterPubkey: pubkeyRes.success ? pubkeyRes.data ?? null : null,
+          transactions: txsRes.success ? txsRes.data ?? {} : {},
+          error: null,
+          loadedWalletName: walletName,
         }));
-      } else {
+
+        // Ensure session wallet list is up-to-date (handles cold start)
+        const statusRes = await aeroe.status();
+        if (statusRes.success && statusRes.data) {
+          sessionStore.setWallets(statusRes.data.wallets || []);
+        }
+        return;
+      }
+
+      if (Date.now() - start > MAX_WAIT_MS) {
+        const err = JSON.stringify(balanceRes.error ?? 'Balance not ready');
         update(s => ({
           ...s,
-          status: 'error',
-          error: 'Backend returned success but data was missing.',
+          status: firstLoad ? 'error' : 'loaded',
+          fetching: false,
+          error: `Failed to load wallet balance: ${err}`,
         }));
+        return;
       }
-    } else {
-      // Consolidate errors from the backend calls
-      const balanceError = balanceResult.success ? null : JSON.stringify(balanceResult.error);
-      const pubkeyError = pubkeyResult.success ? null : JSON.stringify(pubkeyResult.error);
-      const txsError = txsResult.success ? null : JSON.stringify(txsResult.error);
-      const error = [balanceError, pubkeyError, txsError].filter(e => e).join(', ');
 
-      update(s => ({
-        ...s,
-        status: 'error',
-        error: `Failed to load wallet data: ${error}`,
-      }));
+      await new Promise(r => setTimeout(r, RETRY_DELAY));
     }
   }
 
@@ -128,12 +145,30 @@ function createWalletStore() {
         masterPubkey: null,
         transactions: {},
         error: null,
+        loadedWalletName: null,
+        fetching: false,
     }));
   }
 
   return {
     subscribe,
     fetchWalletData,
+    // Helper used by UI when switching wallets: ensures backend has the wallet loaded before fetching data
+    async loadAndFetch(walletName: string) {
+      try {
+        await walletService.load(walletName);
+        // refresh list of wallets from backend so menu is accurate
+        const statusRes = await aeroe.status();
+        if (statusRes.success && statusRes.data) {
+          const current = get(sessionStore).wallets;
+          const merged = Array.from(new Set([...(current ?? []), ...((statusRes.data.wallets) ?? [])]));
+          sessionStore.setWallets(merged);
+        }
+      } catch (_) {
+        // Even if load fails, still attempt to fetch to surface error via balance
+      }
+      await fetchWalletData(walletName);
+    },
     createTransaction,
     signTransaction,
     sendTransaction,
