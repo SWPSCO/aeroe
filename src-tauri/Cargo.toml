@@ -53,13 +53,13 @@ num_cpus = { version = "1.16.0" }
 # roles_logic_sv2 = { git = "https://github.com/stratum-mining/stratum.git", rev = "6a4874d1302327e169cd894dc5a79f52d533dcc9", package = "roles_logic_sv2" }
 
 # nockchain
-nockchain-wallet-lib = { git = "https://github.com/swpsco/nockchain-wallet-lib.git", rev = "1fd99598f863c78b710b129ae106a93883ba890b" }
-nockchain = { git = "https://github.com/swpsco/nockchain.git", rev = "3d2e98a1626359920eb9e31b55940de3d0f64593", package = "nockchain" }
-nockvm = { git = "https://github.com/swpsco/nockchain.git", rev = "3d2e98a1626359920eb9e31b55940de3d0f64593", package = "nockvm" }
-nockapp = { git = "https://github.com/swpsco/nockchain.git", rev = "3d2e98a1626359920eb9e31b55940de3d0f64593", package = "nockapp" }
-zkvm-jetpack = { git = "https://github.com/swpsco/nockchain.git", rev = "3d2e98a1626359920eb9e31b55940de3d0f64593", package = "zkvm-jetpack" }
-nockvm_macros = { git = "https://github.com/swpsco/nockchain.git", rev = "3d2e98a1626359920eb9e31b55940de3d0f64593", package = "nockvm_macros" }
-nockchain-libp2p-io = { git = "https://github.com/swpsco/nockchain.git", rev = "3d2e98a1626359920eb9e31b55940de3d0f64593", package = "nockchain-libp2p-io" }
+nockchain-wallet-lib = { git = "https://github.com/swpsco/nockchain-wallet-lib.git", rev = "caac9a7e8ad1a6debb00109fa7454c285d88b6a0" }
+nockchain = { git = "https://github.com/swpsco/nockchain.git", rev = "61e581e149ff8275223ccf527d7c4578c6866073", package = "nockchain" }
+nockvm = { git = "https://github.com/swpsco/nockchain.git", rev = "61e581e149ff8275223ccf527d7c4578c6866073", package = "nockvm" }
+nockapp = { git = "https://github.com/swpsco/nockchain.git", rev = "61e581e149ff8275223ccf527d7c4578c6866073", package = "nockapp" }
+zkvm-jetpack = { git = "https://github.com/swpsco/nockchain.git", rev = "61e581e149ff8275223ccf527d7c4578c6866073", package = "zkvm-jetpack" }
+nockvm_macros = { git = "https://github.com/swpsco/nockchain.git", rev = "61e581e149ff8275223ccf527d7c4578c6866073", package = "nockvm_macros" }
+nockchain-libp2p-io = { git = "https://github.com/swpsco/nockchain.git", rev = "61e581e149ff8275223ccf527d7c4578c6866073", package = "nockchain-libp2p-io" }
 futures = "0.3.31"
 tauri-plugin-clipboard-manager = "2.2.2"
 
