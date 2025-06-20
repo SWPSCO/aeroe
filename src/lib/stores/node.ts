@@ -116,9 +116,15 @@ function createNodeStore() {
     update(s => ({ ...s, heightPolling: true }));
     
     try {
+      console.log('Polling block height...');
       const result = await nodeService.peek('height');
+      console.log('Height poll result:', result);
+      
       if (result.success && result.data !== undefined) {
+        console.log('Setting block height to:', result.data);
         update(s => ({ ...s, blockHeight: result.data, error: null }));
+      } else {
+        console.log('Height poll failed or no data:', result);
       }
     } catch (error) {
       console.error('Failed to get block height:', error);

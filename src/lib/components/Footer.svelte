@@ -26,6 +26,11 @@
   let externalPath: string = $state('')
   let showExternalDialog = $state(false)
   let showDropdown = $state(false)
+  $effect(() => {
+      if (isConnected && showExternalDialog && nodeType == 'external') {
+          showExternalDialog = false;
+      }
+  });
 
   const updateApp = async () => {
       downloading = true;
