@@ -1,5 +1,5 @@
 # Workflow name displayed on GitHub
-name: Release workflow (incl selfhosted)
+name: Aeroe release
 
 on:
   workflow_dispatch:
@@ -456,12 +456,11 @@ jobs:
           codesign -d --entitlements - src-tauri/target/${{ matrix.target }}/release/bundle/macos/Aeroe.app/Contents/MacOS/aeroe
       # --- END: Sidecar Verification and Manual Codesign ---
 
-      - name: Prepare artifact paths for upload
+      - name: Prepare macos artifact paths for upload
         if: steps.should_build.outputs.skip != 'true'
         id: prep_artifact_paths
         shell: bash
         run: |
-          # Get the artifact paths from whichever build step ran
           if [ "${{ inputs.notarize }}" = "true" ]; then
             paths_json='${{ steps.tauri_build_notarized.outputs.artifactPaths }}'
           else
@@ -469,20 +468,30 @@ jobs:
           fi
           echo "Raw artifactPaths from tauri_build: ${paths_json}"
           
-          # Convert JSON array string to newline-separated paths
-          # Fallback to empty string if jq fails or input is empty, to avoid errors with GITHUB_OUTPUT
           paths_list=$(echo "${paths_json}" | jq -r '.[]' 2>/dev/null || echo "")
           
-          # Add the .tar.gz and .tar.gz.sig files that tauri creates but doesn't include in artifactPaths
-          # These are needed for the Tauri v2 updater plugin
+          # Only include the renamed tar.gz files, not the originals
+          filtered_paths=""
           additional_paths=""
           
-          # Handle macOS .app bundles
+          for path in $(echo "${paths_list}"); do
+            if [[ "$path" == *".app.tar.gz" ]]; then
+              # Skip the original tar.gz, we'll add the renamed version
+              continue
+            elif [[ "$path" == *".app.tar.gz.sig" ]]; then
+              # Skip the original sig, we'll add the renamed version
+              continue
+            else
+              # Include non-tar.gz files (like .dmg)
+              filtered_paths="${filtered_paths}${path}\n"
+            fi
+          done
+          
+          # Handle macOS .app bundles - create renamed versions
           for path in $(echo "${paths_list}" | grep "\.app$"); do
             tar_gz_path="${path}.tar.gz"
             sig_path="${path}.tar.gz.sig"
             if [ -f "$tar_gz_path" ]; then
-              # Rename the tar.gz file to include architecture to avoid conflicts
               arch_name="${{ matrix.target }}"
               if [[ "$arch_name" == "x86_64-apple-darwin" ]]; then
                 arch_suffix="x64"
@@ -492,12 +501,11 @@ jobs:
                 arch_suffix="unknown"
               fi
               
-              # Create new filename with architecture
               tar_gz_dir=$(dirname "$tar_gz_path")
               new_tar_gz_name="Aeroe-${arch_suffix}.app.tar.gz"
               new_tar_gz_path="${tar_gz_dir}/${new_tar_gz_name}"
               
-              # Copy the file with new name
+              # Create renamed file
               cp "$tar_gz_path" "$new_tar_gz_path"
               additional_paths="${additional_paths}${new_tar_gz_path}\n"
               
@@ -511,19 +519,17 @@ jobs:
             fi
           done
           
-          # Combine original paths with additional paths
-          all_paths="${paths_list}"
+          # Combine filtered paths with additional paths
+          all_paths="${filtered_paths}"
           if [ -n "$additional_paths" ]; then
-            all_paths="${all_paths}\n$(echo -e "$additional_paths" | sed '/^$/d')"
+            all_paths="${all_paths}$(echo -e "$additional_paths" | sed '/^$/d')\n"
           fi
           
-          echo "Formatted paths for upload:"
-          echo -e "${all_paths}"
+          echo "Final paths for upload:"
+          echo -e "${all_paths}" | sed '/^$/d'
           
-          # Set output for the next step
-          # https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-a-multiline-output
           echo "paths<<EOF" >> $GITHUB_OUTPUT
-          echo -e "${all_paths}" >> $GITHUB_OUTPUT
+          echo -e "${all_paths}" | sed '/^$/d' >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Upload Build Artifacts
@@ -668,14 +674,6 @@ jobs:
           projectPath: '.'
           args: ${{ matrix.build_args }}
 
-      # Native aarch64 Linux build using ARM runner
-      - name: ⚠️ ARM64 Build Notice
-        if: steps.should_build.outputs.skip != 'true' && matrix.use_native_runner
-        run: |
-          echo "🚨 NOTICE: ARM64 builds use emulated runners and take significantly longer (~1 hour vs ~10 minutes)"
-          echo "📊 This will consume more GitHub Actions minutes but provides reliable aarch64 Linux builds"
-          echo "🚀 Starting ARM64 build process..."
-
       - name: Build aarch64 Linux app using native ARM runner
         if: steps.should_build.outputs.skip != 'true' && matrix.use_native_runner
         uses: pguyot/arm-runner-action@v2.6.5
@@ -687,13 +685,9 @@ jobs:
           image_additional_mb: 10240
           optimize_image: no
           commands: |
-            # Prevent Rust from complaining about $HOME not matching eid home
             export HOME=/root
-            
-            # Workaround to CI worker being stuck on Updating crates.io index
             export CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse
             
-            # Install setup prerequisites
             apt-get update -y --allow-releaseinfo-change
             apt-get autoremove -y
             apt-get install -y --no-install-recommends --no-install-suggests curl libwebkit2gtk-4.1-dev build-essential libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf libfuse2 file jq unzip
@@ -702,26 +696,29 @@ jobs:
             curl -fsSL https://deb.nodesource.com/setup_lts.x | bash
             apt-get install -y nodejs
             
-            # Download and extract watcher binaries
+            # Download watcher binary with correct filename
             echo "Downloading watcher binaries from latest release..."
             WATCHER_RELEASE_URL="https://github.com/SWPSCO/aeroe-watcher/releases/latest"
-            curl -L -o ${{ matrix.watcher_binary }}.zip "${WATCHER_RELEASE_URL}/download/${{ matrix.watcher_binary }}.zip"
-            unzip -j "${{ matrix.watcher_binary }}.zip" -d .
+            curl -L -o linux_aarch64-aeroe-watcher.zip "${WATCHER_RELEASE_URL}/download/linux_aarch64-aeroe-watcher.zip"
             
-            # The binary inside the zip has the same name as the zip file (minus .zip extension)
-            binary_name="${{ matrix.watcher_binary }}"
-            if [ -f "$binary_name" ]; then
-              cp "$binary_name" "src-tauri/assets/watcher"
-              chmod +x "src-tauri/assets/watcher"
-              echo "Successfully replaced watcher binary with ${{ matrix.watcher_binary }}"
-              ls -la "src-tauri/assets/watcher"
+            unzip -j "linux_aarch64-aeroe-watcher.zip" -d .
+            
+            # The binary inside should be named something like "linux_aarch64-aeroe-watcher"
+            # Find the extracted binary (it might have a different name)
+            extracted_binary=$(find . -maxdepth 1 -name "*aeroe-watcher*" -type f | head -1)
+            if [ -f "$extracted_binary" ]; then
+              cp "$extracted_binary" "src-tauri/bin/watcher"
+              chmod +x "src-tauri/bin/watcher"
+              echo "Successfully replaced watcher binary"
+              ls -la "src-tauri/bin/watcher"
             else
-              echo "Error: Could not find watcher binary: $binary_name"
+              echo "Error: Could not find watcher binary"
+              echo "Files in current directory:"
               ls -la .
               exit 1
             fi
             
-            # Download and apply tauri.conf.json with updated version
+            # Rest of your existing code...
             echo "Updating tauri.conf.json version..."
             TAG_NAME="${{ github.ref_name }}"
             CLEANED_TAG_NAME="${TAG_NAME#v}"
@@ -743,16 +740,11 @@ jobs:
             mv "$TMP_JSON_FILE" "$CONFIG_FILE"
             echo "Successfully updated version in $CONFIG_FILE"
             
-            # Create .env file
             echo "PUBLIC_AEROE_DEV_PAGE=false" > .env
             echo "Created .env file:"
             cat .env
-            osascript -e 'tell application "Finder" to activate'
             
-            # Install frontend dependencies
             npm install
-            
-            # Build the application
             npm run tauri build -- --verbose
 
       - name: Prepare artifact paths for upload (x64)
@@ -849,12 +841,22 @@ jobs:
           echo -e "${all_paths}" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Upload Build Artifacts
-        if: steps.should_build.outputs.skip != 'true'
+      # x64
+      - name: Upload Build Artifacts           
+        if: steps.should_build.outputs.skip != 'true' && !matrix.use_native_runner
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os_name }}-${{ needs.update_version.outputs.app_version }}
-          path: ${{ matrix.use_native_runner && steps.prep_artifact_paths_aarch64.outputs.paths || steps.prep_artifact_paths_x64.outputs.paths }}
+          path: ${{ steps.prep_artifact_paths_x64.outputs.paths }}
+          if-no-files-found: error
+
+      # aarch64
+      - name: Upload Build Artifacts 
+        if: steps.should_build.outputs.skip != 'true' && matrix.use_native_runner
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os_name }}-${{ needs.update_version.outputs.app_version }}
+          path: ${{ steps.prep_artifact_paths_aarch64.outputs.paths }}
           if-no-files-found: error
 
   publish_release:
@@ -892,17 +894,13 @@ jobs:
 
       - name: Create Tauri Updater Static JSON
         run: |
-          echo "Creating static JSON for Tauri updater..."
+          echo "Creating static JSON for Tauri updater (macOS only)..."
           
-          # Get version without 'v' prefix
           VERSION="${{ needs.update_version.outputs.app_version }}"
           TAG_NAME="${{ github.ref_name }}"
           REPO_URL="https://github.com/${{ github.repository }}"
-          
-          # Get current timestamp in ISO format
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")
           
-          # Start building the JSON
           cat > latest.json << EOF
           {
             "version": "$VERSION",
@@ -911,15 +909,13 @@ jobs:
             "platforms": {
           EOF
           
-          # Initialize platform entries array
           PLATFORM_ENTRIES=""
           
-          # Process x86_64 (x64) artifacts
+          # Only process macOS artifacts for updater
           X64_TAR_GZ=$(find artifacts -name "Aeroe-x64.app.tar.gz" -type f | head -1)
           X64_SIG=$(find artifacts -name "Aeroe-x64.app.tar.gz.sig" -type f | head -1)
           
           if [ -f "$X64_TAR_GZ" ] && [ -f "$X64_SIG" ]; then
-            echo "Found x64 artifacts: $X64_TAR_GZ and $X64_SIG"
             X64_SIGNATURE=$(cat "$X64_SIG")
             X64_URL="$REPO_URL/releases/download/$TAG_NAME/Aeroe-x64.app.tar.gz"
             
@@ -929,16 +925,13 @@ jobs:
               }'
           fi
           
-          # Process aarch64 macOS artifacts
           AARCH64_TAR_GZ=$(find artifacts -name "Aeroe-aarch64.app.tar.gz" -type f | head -1)
           AARCH64_SIG=$(find artifacts -name "Aeroe-aarch64.app.tar.gz.sig" -type f | head -1)
           
           if [ -f "$AARCH64_TAR_GZ" ] && [ -f "$AARCH64_SIG" ]; then
-            echo "Found aarch64 macOS artifacts: $AARCH64_TAR_GZ and $AARCH64_SIG"
             AARCH64_SIGNATURE=$(cat "$AARCH64_SIG")
             AARCH64_URL="$REPO_URL/releases/download/$TAG_NAME/Aeroe-aarch64.app.tar.gz"
             
-            # Add comma if we already have x64 entry
             if [ -n "$PLATFORM_ENTRIES" ]; then
               PLATFORM_ENTRIES="$PLATFORM_ENTRIES,"
             fi
@@ -950,65 +943,19 @@ jobs:
               }"
           fi
           
-          # Process x64 Linux artifacts
-          LINUX_X64_TAR_GZ=$(find artifacts -name "Aeroe-x64.AppImage.tar.gz" -type f | head -1)
-          LINUX_X64_SIG=$(find artifacts -name "Aeroe-x64.AppImage.tar.gz.sig" -type f | head -1)
-          
-          if [ -f "$LINUX_X64_TAR_GZ" ] && [ -f "$LINUX_X64_SIG" ]; then
-            echo "Found x64 Linux artifacts: $LINUX_X64_TAR_GZ and $LINUX_X64_SIG"
-            LINUX_X64_SIGNATURE=$(cat "$LINUX_X64_SIG")
-            LINUX_X64_URL="$REPO_URL/releases/download/$TAG_NAME/Aeroe-x64.AppImage.tar.gz"
-            
-            # Add comma if we already have entries
-            if [ -n "$PLATFORM_ENTRIES" ]; then
-              PLATFORM_ENTRIES="$PLATFORM_ENTRIES,"
-            fi
-            
-            PLATFORM_ENTRIES="$PLATFORM_ENTRIES
-              \"linux-x86_64\": {
-                \"signature\": \"$LINUX_X64_SIGNATURE\",
-                \"url\": \"$LINUX_X64_URL\"
-              }"
-          fi
-          
-          # Process aarch64 Linux artifacts
-          LINUX_AARCH64_TAR_GZ=$(find artifacts -name "Aeroe-aarch64.AppImage.tar.gz" -type f | head -1)
-          LINUX_AARCH64_SIG=$(find artifacts -name "Aeroe-aarch64.AppImage.tar.gz.sig" -type f | head -1)
-          
-          if [ -f "$LINUX_AARCH64_TAR_GZ" ] && [ -f "$LINUX_AARCH64_SIG" ]; then
-            echo "Found aarch64 Linux artifacts: $LINUX_AARCH64_TAR_GZ and $LINUX_AARCH64_SIG"
-            LINUX_AARCH64_SIGNATURE=$(cat "$LINUX_AARCH64_SIG")
-            LINUX_AARCH64_URL="$REPO_URL/releases/download/$TAG_NAME/Aeroe-aarch64.AppImage.tar.gz"
-            
-            # Add comma if we already have entries
-            if [ -n "$PLATFORM_ENTRIES" ]; then
-              PLATFORM_ENTRIES="$PLATFORM_ENTRIES,"
-            fi
-            
-            PLATFORM_ENTRIES="$PLATFORM_ENTRIES
-              \"linux-aarch64\": {
-                \"signature\": \"$LINUX_AARCH64_SIGNATURE\",
-                \"url\": \"$LINUX_AARCH64_URL\"
-              }"
-          fi
-          
-          # Complete the JSON
           cat >> latest.json << EOF
           $PLATFORM_ENTRIES
             }
           }
           EOF
           
-          echo "Generated latest.json:"
+          echo "Generated latest.json (macOS updater only):"
           cat latest.json
           
-          # Validate JSON format
           if ! jq empty latest.json; then
             echo "Error: Generated JSON is invalid"
             exit 1
           fi
-          
-          echo "Static JSON created successfully"
 
       - name: Debug Release Info
         run: |
@@ -1035,6 +982,4 @@ jobs:
             artifacts/**/*.app.tar.gz
             artifacts/**/*.app.tar.gz.sig
             artifacts/**/*.AppImage
-            artifacts/**/*.AppImage.tar.gz
-            artifacts/**/*.AppImage.tar.gz.sig
             latest.json
