@@ -79,7 +79,7 @@ pub async fn node_get_status(
     tracing::info!("[node_get_status] Is connected: {}", node.is_connected());
     
     let mode_str = match node.get_mode() {
-        NodeMode::Local(_) => "local",
+        NodeMode::Local => "local",
         NodeMode::External(_) => "external", 
         NodeMode::Disconnected => "disconnected",
     };

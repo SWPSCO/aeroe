@@ -20,7 +20,7 @@ pub enum NockchainResponse {
 
 #[derive(Debug)]
 pub enum NodeMode {
-    Local((std::path::PathBuf)),
+    Local,
     External(std::path::PathBuf),
     Disconnected,
 }
@@ -49,7 +49,7 @@ impl NockchainNode {
     pub async fn start_master(&mut self) -> Result<(), String> {
         match &self.mode {
             NodeMode::External(_) => {
-                Err("Cannot start master node when connected to external socket".to_string())
+                Err("Cannot start local node when connected to external socket".to_string())
             }
             _ => {
                 let (response_tx, response_rx) = oneshot::channel();
@@ -65,7 +65,7 @@ impl NockchainNode {
 
                 match response_rx.await {
                     Ok(Ok(_)) => {
-                        self.mode = NodeMode::Local(std::path::PathBuf::new());
+                        self.mode = NodeMode::Local;
                         Ok(())
                     }
                     Ok(Err(e)) => Err(e),
@@ -77,7 +77,7 @@ impl NockchainNode {
 
     pub async fn stop_master(&mut self) -> Result<(), String> {
         match &self.mode {
-            NodeMode::Local(_) => {
+            NodeMode::Local => {
                 let (response_tx, response_rx) = oneshot::channel();
                 let cmd = NockchainCommand {
                     command: NockchainRequest::StopMaster,
@@ -177,7 +177,7 @@ impl NockchainNode {
                     Err(e) => Err(format!("Command response error: {}", e)),
                 }
             }
-            NodeMode::Local(_) => Err("Cannot disconnect external node when using local node".to_string()),
+            NodeMode::Local => Err("Cannot disconnect external node when using local node".to_string()),
             NodeMode::Disconnected => Err("No external node connected".to_string()),
         }
     }
@@ -219,7 +219,7 @@ impl NockchainNode {
                 tracing::info!("[NockchainNode] Returning external socket path: {:?}", path);
                 Some(path)
             },
-            NodeMode::Local(_) => {
+            NodeMode::Local => {
                 tracing::info!("[NockchainNode] In Local mode, returning None to use default socket");
                 None
             },
