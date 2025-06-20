@@ -1,5 +1,5 @@
 # Workflow name displayed on GitHub
-name: Release workflow (incl selfhosted)
+name: Aeroe release
 
 on:
   workflow_dispatch:
