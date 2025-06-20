@@ -12,6 +12,7 @@ export interface WalletState {
   error: string | null;
   loadedWalletName: string | null;
   fetching: boolean;
+  blockHeight: number | null;
 }
 
 function createWalletStore() {
@@ -23,11 +24,33 @@ function createWalletStore() {
     error: null,
     loadedWalletName: null,
     fetching: false,
+    blockHeight: null,
   });
   const { subscribe, update } = store;
 
   const RETRY_DELAY = 500; // ms
   const MAX_WAIT_MS = 360000;
+
+  const BLOCK_POLL_INTERVAL = 10000;
+  let blockPollId: ReturnType<typeof setInterval> | null = null;
+
+  function startBlockHeightPolling() {
+    if (blockPollId) return; // already polling
+    blockPollId = setInterval(async () => {
+      const statusRes = await aeroe.status();
+      if (statusRes.success && statusRes.data) {
+        const bh = statusRes.data.blockHeight ?? null;
+        update(s => ({ ...s, blockHeight: bh }));
+      }
+    }, BLOCK_POLL_INTERVAL);
+  }
+
+  function stopBlockHeightPolling() {
+    if (blockPollId) {
+      clearInterval(blockPollId);
+      blockPollId = null;
+    }
+  }
 
   async function fetchWalletData(walletName: string): Promise<void> {
     // prevent duplicate fetches for wallet already loaded
@@ -54,6 +77,8 @@ function createWalletStore() {
       ]);
 
       if (balanceRes.success && balanceRes.data !== undefined && balanceRes.data !== null) {
+        const statusRes = await aeroe.status();
+
         update(s => ({
           ...s,
           status: 'loaded',
@@ -63,13 +88,16 @@ function createWalletStore() {
           transactions: txsRes.success ? txsRes.data ?? {} : {},
           error: null,
           loadedWalletName: walletName,
+          blockHeight: statusRes.success && statusRes.data ? statusRes.data.blockHeight ?? null : null,
         }));
 
         // Ensure session wallet list is up-to-date (handles cold start)
-        const statusRes = await aeroe.status();
         if (statusRes.success && statusRes.data) {
           sessionStore.setWallets(statusRes.data.wallets || []);
         }
+
+        // Start ongoing block height polling now that the wallet is loaded
+        startBlockHeightPolling();
         return;
       }
 
@@ -147,7 +175,11 @@ function createWalletStore() {
         error: null,
         loadedWalletName: null,
         fetching: false,
+        blockHeight: null,
     }));
+
+    // stop polling when wallet is locked/out
+    stopBlockHeightPolling();
   }
 
   return {
@@ -174,6 +206,8 @@ function createWalletStore() {
     sendTransaction,
     setError,
     clearError,
+    startBlockHeightPolling,
+    stopBlockHeightPolling,
     lock,
   };
 }

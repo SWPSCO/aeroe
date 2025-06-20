@@ -152,6 +152,12 @@
 		<div class="px-8 pb-8">
 			<TransactionList transactions={$walletStore.transactions} />
 		</div>
+
+		{#if $walletStore.blockHeight !== null}
+			<div class="px-8 pb-8 text-right text-sm font-mono text-gray-600">
+				Block Height: {$walletStore.blockHeight}
+			</div>
+		{/if}
 	</div>
 </div>
 

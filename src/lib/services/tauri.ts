@@ -19,6 +19,9 @@ export interface AeroeStatus {
   vaultLoaded: boolean;
   wallets: string[];
   activeWallet: string | null;
+  blockHeight?: number | null;
+  masterNodeRunning?: boolean;
+  numMiners?: number;
 }
 
 export interface NockchainTxMeta {
