@@ -1,3 +1,9 @@
+# THIS APP IS NO LONGER ACTIVELY DEVELOPED
+
+## Please checkout [nockster](https://nockster.com) for a modern cross-platform nockchain wallet
+
+---
+
 # Aeroe Wallet
 Aeroe Wallet is your go-to tool for managing and mining on Nockchain, offering a straightforward and effective way to engage with the Nockchain ecosystem.
 
